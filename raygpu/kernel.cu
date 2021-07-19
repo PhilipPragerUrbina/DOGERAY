@@ -2826,7 +2826,7 @@ int main(int argc, char* args[])
         //Create window
         SDL_CreateWindowAndRenderer(SCREEN_WIDTH * upscale, SCREEN_HEIGHT * upscale, 0, &window, &renderer);
         SDL_SetWindowTitle(window,
-            "Ray Tracer BETA");
+            "DOGERAY");
         if (window == NULL)
         {
             printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
