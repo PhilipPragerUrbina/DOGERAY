@@ -10,8 +10,8 @@ Requires CUDA and SDL2
 Some samples:
 <p align="center">
   <img src="images/cow.PNG" width="350" title="Cow Test">
-   <img src="images/car.PNG" width="350" title="car Test">
-   <img src="images/torus.PNG" width="350" title="torus Test">
-   <img src="images/teapot.PNG" width="350" title="teapot Test">
+   <img src="images/car.png" width="350" title="car Test">
+   <img src="images/torus.png" width="350" title="torus Test">
+   <img src="images/teapot.png" width="350" title="teapot Test">
   
 </p>
