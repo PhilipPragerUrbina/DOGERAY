@@ -21,12 +21,12 @@ namespace fs = std::filesystem;
 
 //settings
 //render dimensions
-//const int SCREEN_WIDTH = 1280;
-//const int SCREEN_HEIGHT = 720;
-const int SCREEN_WIDTH = 300;
-const int SCREEN_HEIGHT = 200;
+const int SCREEN_WIDTH = 1280;
+const int SCREEN_HEIGHT = 720;
+//const int SCREEN_WIDTH = 300;
+//const int SCREEN_HEIGHT = 200;
 //factor to scale pixels up for small resoultions
-const int upscale = 2;
+const int upscale = 1;
 //how much background light
 
 
@@ -179,7 +179,7 @@ int noutr[s] = { 0 };
 int noutg[s] = { 0 };
 int noutb[s] = { 0 };
 //objects
-cudaError_t addWithCuda(int* outputr, int* outputg, int* outputb, bvh* nbvhtree, singleobject* allobjects,cudaTextureObject_t* texarray);
+cudaError_t addWithCuda(int* outputr, int* outputg, int* outputb, bvh* nbvhtree, singleobject* allobjects,cudaTextureObject_t* texarray , int divisor);
 
 
   int bvhnum = objnum * 2;
@@ -1779,17 +1779,17 @@ __device__ float3 random_in_unit_disk() {
         return p;
     }
 }
-__global__ void addKernel(int* outputr, int* outputg, int* outputb, float* settings, bvh* bvhtree, singleobject* b, cudaTextureObject_t* tex)
+__global__ void addKernel(int* outputr, int* outputg, int* outputb, float* settings, bvh* bvhtree, singleobject* b, cudaTextureObject_t* tex, int divisor)
 {
    
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int w = x * SCREEN_HEIGHT + y;
-    float aspect = float(SCREEN_WIDTH) / float(SCREEN_HEIGHT);
-    float u =( float(x) / float(SCREEN_WIDTH));
-    float v =float(y) / float(SCREEN_HEIGHT);
+    float aspect = float(SCREEN_WIDTH / divisor) / float(SCREEN_HEIGHT / divisor);
+    float u =( float(x) / float(SCREEN_WIDTH / divisor));
+    float v =float(y) / float(SCREEN_HEIGHT / divisor);
     // * aspect
-    if ((x >= SCREEN_WIDTH) || (y >= SCREEN_HEIGHT)) return;
+    if ((x >= SCREEN_WIDTH / divisor) || (y >= SCREEN_HEIGHT / divisor)) return;
     outputr[w] = 0;
     outputg[w] = 0;
     outputb[w] = 0;
@@ -1839,8 +1839,8 @@ __global__ void addKernel(int* outputr, int* outputg, int* outputb, float* setti
 
         double rand1 = curand_uniform_double(&state);
         double rand2 = curand_uniform_double(&state);
-        float nu = ((float(x) + rand1) / float(SCREEN_WIDTH));
-        float nv = (float(y) + rand2) / float(SCREEN_HEIGHT);
+        float nu = ((float(x) + rand1) / float(SCREEN_WIDTH / divisor));
+        float nv = (float(y) + rand2) / float(SCREEN_HEIGHT / divisor);
         float3 rd = make3(lens_radius) * random_in_unit_disk();
         float3 offset = uu * make3(rd.x) + vu * make3(rd.y);
         float3 dir = lower_left_corner + make3(nu) * horizontal + make3(nv) * vertical - origin-offset;
@@ -2797,7 +2797,7 @@ int main(int argc, char* args[])
 
 
 
-
+   int td = 1;
 
 
 
@@ -2847,22 +2847,56 @@ int main(int argc, char* args[])
            
             while (!quit)
             {
-             
+                td = 1;
 
-               
+                //for motion blur just dont reset iter with motion 
+           
+                int pnum = 0;
                 std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
                 if (iter == 0) {
 
-                    cudaError_t cudaStatus = addWithCuda(outr, outg, outb, nbvhtree, allobjects,textures);
+                    cudaError_t cudaStatus = addWithCuda(outr, outg, outb, nbvhtree, allobjects,textures,8);
+
+
+                    td = 8;
                     iter++;
-                } else{
-                    cudaError_t cudaStatus = addWithCuda(noutr, noutg, noutb, nbvhtree, allobjects,textures);
+                }
+                else if (iter == 1) {
+
+                    cudaError_t cudaStatus = addWithCuda(outr, outg, outb, nbvhtree, allobjects, textures, 4);
+                    td = 4;
+                    pnum = 1;
+
+                    iter++;
+                }
+
+                else if (iter == 2) {
+
+                    cudaError_t cudaStatus = addWithCuda(outr, outg, outb, nbvhtree, allobjects, textures, 2);
+                    td = 2;
+                    pnum = 2;
+                    
+                    iter++;
+                }
+
+                else if (iter == 3) {
+                    cudaError_t cudaStatus = addWithCuda(outr, outg, outb, nbvhtree, allobjects, textures, 1);
+
+                    pnum = 3;
+                    iter++;
+
+                }
+                
+                else{
+                    cudaError_t cudaStatus = addWithCuda(noutr, noutg, noutb, nbvhtree, allobjects,textures, 1);
                     for (int i = 0; i < s; ++i) {
                         outr[i] += (noutr[i]);
                         outg[i] += (noutg[i]);
                         outb[i] += (noutb[i]);
                   
                     }
+                    //number of preview samples
+                    pnum = 3;
                     iter++;
 
                 }
@@ -2896,25 +2930,28 @@ int main(int argc, char* args[])
 
 
 
-                for (int x = 0; x < SCREEN_WIDTH; x++) {
-                    for (int y = 0; y < SCREEN_HEIGHT; y++) {
+                for (int x = 0; x < SCREEN_WIDTH/td; x++) {
+                    for (int y = 0; y < SCREEN_HEIGHT/td; y++) {
                         int w = x * SCREEN_HEIGHT + y;
-                        SDL_SetRenderDrawColor(renderer, clamp(outr[w]/iter,0,255), clamp(outg[w]/iter,0,255), clamp(outb[w]/iter,0,255), 255);
+                        SDL_SetRenderDrawColor(renderer, clamp(outr[w]/(iter-pnum),0,255), clamp(outg[w]/(iter-pnum),0,255), clamp(outb[w]/(iter - pnum),0,255), 255);
                         //uncomment next line for party mode!!!!
                        // SDL_SetRenderDrawColor(renderer, sqrt(outr[w] * iter), sqrt(outg[w] * iter), sqrt(outb[w] * iter), 255);
-                        SDL_RenderDrawPoint(renderer, x * upscale, y * upscale);
-                        if (upscale > 1) {
+                        SDL_RenderDrawPoint(renderer, x * upscale*td, y * upscale*td);
+                        if (upscale > 1 || td>1) {
 
 
-                            for (int u = 0; u < upscale; u++) {
-                                SDL_RenderDrawPoint(renderer, x * upscale + u, y * upscale);
-                                for (int b = 0; b < upscale; b++) {
-                                    SDL_RenderDrawPoint(renderer, x * upscale + u, y * upscale + b);
+                            for (int u = 0; u < (upscale * td); u++) {
+                                SDL_RenderDrawPoint(renderer, x * (upscale * td) + u, y * (upscale*td));
+                                for (int b = 0; b < (upscale * td); b++) {
+                                    SDL_RenderDrawPoint(renderer, x * (upscale * td) + u, y * (upscale * td) + b);
 
                                 }
                             }
 
                         }
+                     
+                  
+                      
 
 
                         // SDL_RenderPresent(renderer);
@@ -2931,7 +2968,7 @@ int main(int argc, char* args[])
                     }
                 }
                 std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-                std::cout << '\r' << "d: " << debugnum[0] << " " << "Time = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]  " << 1e+6 / std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << " FPS       " << iter * samples_per_pixell << " samples";
+                std::cout << '\r' << "d: " << debugnum[0] << " " << "Time = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]  " << 1e+6 / std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << " FPS       " << (iter - pnum) * samples_per_pixell << " samples";
 
                 //cam[0] = cam[0] + 1;
 
@@ -2962,7 +2999,9 @@ int main(int argc, char* args[])
                             break;
                         case SDLK_LEFT:
                             campos.x -= 1;
-                           
+
+                            //for motion blur just dont reset iter with motion 
+
                             iter = 0;
                             break;
                         case SDLK_UP:
@@ -3051,7 +3090,7 @@ int main(int argc, char* args[])
 }
 
 
-cudaError_t addWithCuda(int* outputr, int* outputg, int* outputb, bvh* nbvhtree, singleobject* allobjects,cudaTextureObject_t* texarray)
+cudaError_t addWithCuda(int* outputr, int* outputg, int* outputb, bvh* nbvhtree, singleobject* allobjects,cudaTextureObject_t* texarray, int divisor)
 {
 
 
@@ -3123,7 +3162,7 @@ cudaError_t addWithCuda(int* outputr, int* outputg, int* outputb, bvh* nbvhtree,
     // Launch a kernel on the GPU with one thread for each element.
     dim3 threadsPerBlock(8, 8);
     //dim3 threadsPerBlock(3, 3);
-    dim3 numBlocks(SCREEN_WIDTH / threadsPerBlock.x, SCREEN_HEIGHT / threadsPerBlock.y);
+    dim3 numBlocks(SCREEN_WIDTH/divisor / threadsPerBlock.x, SCREEN_HEIGHT/ divisor / threadsPerBlock.y);
 
 
 
@@ -3176,7 +3215,7 @@ cudaError_t addWithCuda(int* outputr, int* outputg, int* outputb, bvh* nbvhtree,
 
 
 
-    addKernel << <numBlocks, threadsPerBlock >> > (dev_outputr, dev_outputg, dev_outputb, dev_settings, dev_bvhtree, dev_allobjects,dev_texarray);
+    addKernel << <numBlocks, threadsPerBlock >> > (dev_outputr, dev_outputg, dev_outputb, dev_settings, dev_bvhtree, dev_allobjects,dev_texarray,divisor);
 
     // Check for any errors launching the kernel
     cudaStatus = cudaGetLastError();
