@@ -2839,7 +2839,7 @@ int main(int argc, char* args[])
 						iter = 0;
 						break;
 					case SDLK_ESCAPE:
-                        //handle exi throug escape
+                        //handle exit throug escape
 						quit = true;
 						SDL_DestroyRenderer(renderer);
 						break;
