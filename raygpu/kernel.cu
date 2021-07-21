@@ -17,30 +17,28 @@
 
 namespace fs = std::filesystem;
 
-//for motion blur just dont reset iter with motion 
 
 //settings
 //render dimensions
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
-//const int SCREEN_WIDTH = 300;
-//const int SCREEN_HEIGHT = 200;
+
 //factor to scale pixels up for small resoultions
 const int upscale = 1;
-//how much background light
 
 
-//field of view
 
-//samples every frame
+
+
+
 int debugnum[1] = { -1 };
-//max object count
+
 __constant__ int edebugnum[1] = { 0 };
  int objnum = 10000;
  int texnum = 1;
+
+
 //scene is now stored in scene.rts (ray traced scen file)
-
-
 //every line is an object
 //every attribute is sperated by comma(no spaces)
 //there are thirteen attributes(in order)
@@ -57,16 +55,15 @@ __constant__ int edebugnum[1] = { 0 };
 //next is lambert. 0 for no 1 for yes. only for diffuse
 //next three are dimensions. For spheres only the x is needed. For planes x and Y are needed. ignore z for now.
 //lasty spcify what matirial you want.  0=diffuse  1=light   2=chrome 3=metal 4=glass
-
  //normals and tex coords are in pairs of 3 eg: 1,2,4
  //then come face normals, 3 vertex nromals, 3 text coords, is smooth, is checke tex, color texture name("no" if none)
 //your done now load up the program and it should work
-
-
 // put settings with *
-
   // *,camx,camy,camz,apeture, lookx,looky,lookz,focus dist, fov, max depth, samples per frame, background intesnisty 
 //end settings
+
+
+
 
 typedef struct
 {
@@ -179,7 +176,7 @@ int noutr[s] = { 0 };
 int noutg[s] = { 0 };
 int noutb[s] = { 0 };
 //objects
-cudaError_t addWithCuda(int* outputr, int* outputg, int* outputb, bvh* nbvhtree, singleobject* allobjects,cudaTextureObject_t* texarray , int divisor);
+cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree, singleobject* allobjects,cudaTextureObject_t* texarray , int divisor);
 
 
   int bvhnum = objnum * 2;
@@ -973,7 +970,7 @@ __device__ bool dbounding_box(int obj, float3& min, float3& max, singleobject* b
     return true;
 }
 
- __device__ float3 hiiiiiiit(float3 origin, float3 dir, float3& vex, float3& rotpoint, float3& newdir, bvh* bvhtree) {
+ __device__ float3 bvhhit(float3 origin, float3 dir, float3& vex, float3& rotpoint, float3& newdir, bvh* bvhtree) {
 
 
 
@@ -1007,65 +1004,6 @@ __device__ bool dbounding_box(int obj, float3& min, float3& max, singleobject* b
 
 
 
-
-__device__ float3 mehhit(float3 origin, float3 dir, float3& vex, float3& rotpoint, float3& newdir, bvh* bvhtree, singleobject* b) {
-
-  
-
-        float mindist = 10000;
-        bool yes = true;
-        float closest = 0;
-        float normaldir = 0;
-
-        float3 min;
-        float3 max;
-
-        for (int x = 0; x < anum[0]; x++) {
-
-            dbounding_box(x, min, max, b);
-            if (aabb(origin, dir,min,max)) {
-
-                float3 dist;
-                float3 bon;
-                if (b[x].type == 0) {
-                    dist = hit_sphere(b[x].pos, b[x].dim.x, origin, dir);
-
-                }
-                else  if (b[x].type == 1) {
-                    dist = hit_rect(0, 1000, origin, dir, b[x].pos.x, b[x].pos.x + b[x].dim.x, b[x].pos.y, b[x].pos.y + b[x].dim.y, b[x].pos.z);
-
-                }
-                else  if (b[x].type == 2) {
-                    dist = hit_tri(origin, dir, b[x].pos, b[x].dim, b[x].rot);
-
-                }
-                else  if (b[x].type == 3) {
-
-                    dist = hit_cube(origin, dir, b[x].pos, b[x].dim, bon, b[x].rot, rotpoint, newdir);
-
-                }
-
-                if (dist.x < mindist && dist.x > -0.0) {
-                    vex = bon;
-                    mindist = dist.x;
-                    closest = x;
-                    normaldir = dist.y;
-                    yes = false;
-                }
-
-
-
-            }
-          
-        }
-        if (yes) {
-
-            mindist = -1;
-        }
-        return make_float3(mindist, closest, normaldir);
-    
-    
-}
 
 
 
@@ -1115,67 +1053,13 @@ __device__ float3 singlehit(float3 origin, float3 dir, float3& vex, float3& rotp
 
 
 }
-__device__ float3 traverseRecursive(float3 origin, float3 dir, float3& vex, float3& rotpoint, float3& newdir, bvh* bvhtree, singleobject* b, int tracked)
-{
-    // Bounding box overlaps the query => process node.
-    if (aabb(origin, dir, bvhtree[tracked].min, bvhtree[tracked].max))
-    {
-        // Leaf node => report collision.
-        if (bvhtree[tracked].end == true) {
-
-           return singlehit(origin, dir, vex, rotpoint, newdir, bvhtree[tracked].under, b);
-        }
-        
-            int aa = bvhtree[tracked].children[0];
-            
-           int bb = bvhtree[tracked].children[1];
-        
-
-           float3 a = traverseRecursive(origin,  dir,  vex, rotpoint,  newdir, bvhtree, b, aa);
-            float3 c = traverseRecursive(origin, dir, vex, rotpoint, newdir, bvhtree, b, bb);
-         
-            if (a.x == -1) {
-
-                a.x = 1000000;
-            }
-            if (c.x == -1) {
-
-                c.x = 1000000;
-            }
-
-            if (a.x <= c.x) {
-                if (a.x == 1000000) {
-
-                    a.x = -1;
-                }
-                return a;
-            }
-           
-                if (c.x == 1000000) {
-
-                    c.x = -1;
-                }
-                return c;
-            
-        
-    }
-    return make_float3(-1, 0, 0);
-}
-__device__ float3 nohit(float3 origin, float3 dir, float3& vex, float3& rotpoint, float3& newdir, bvh* bvhtree, singleobject* b) {
-
-
-    
-    float3 a = traverseRecursive(origin, dir,  vex, rotpoint, newdir, bvhtree, b, 0);
-  
-        return a;
-}
 
 
 
 __device__ float3 hit(float3 origin, float3 dir, float3& vex, float3& rotpoint, float3& newdir, bvh* bvhtree, singleobject* b) {
 
 
-    if (hiiiiiiit(origin, dir, vex, rotpoint, newdir, bvhtree).x > -0.1) {
+    if (bvhhit(origin, dir, vex, rotpoint, newdir, bvhtree).x > -0.1) {
 
 
         return  make_float3(1, 2, 1);;
@@ -1279,99 +1163,6 @@ __device__ float3 hit(float3 origin, float3 dir, float3& vex, float3& rotpoint, 
     }
 
     return out;
-
-}
-
-__device__ float3 newhit(float3 origin, float3 dir, float3& vex, float3& rotpoint, float3& newdir,bvh* bvhtree) {
-
-    //preview bvh
-    if (hiiiiiiit(origin, dir, vex, rotpoint, newdir,bvhtree).x > -0.1) {
-
-
-        return  make_float3(1, 2, 1);;
-
-    }
-
-
-
-    //thing
-    /*
-    while (priority_queue is not empty) {
-        Node node = get node from the priority_queue with highest priority(and remove it)
-            if node is a leaf
-                for each object contained in node
-                    if object is intersected by ray
-                        keep this object as potential visible object
-                        if an object was intersected
-                            return
-                        else
-                            // keep traversing the hierarchy by looking down the node's children
-                            for each children in node
-                                if node's children is intersected by ray at distance t 
-                                    insert node into priority_queue(use intersection distance t to define priority of the node in the list)
-    }
-
-    */
-
-}
-
-
-
-__device__ float3 hiiit(float3 origin, float3 dir, float3& vex, float3& rotpoint, float3& newdir, bvh* bvhtree, singleobject* b) {
-
-
-
-
-
-
-    float3 out = make_float3(100000, 0, 0);
-    bool oof = true;
-
-        for (int node = 0; node < dbvhnumnum[0]; node++) {
-
-
-
-            bvh currentnode = bvhtree[node];
-            //remove from array
-           
-
-            if (currentnode.end == true) {
-                if (aabb(origin, dir, currentnode.min, currentnode.max)) {
-
-
-                  
-
-                    float3 temp = singlehit(origin, dir, vex, rotpoint, newdir, 0, b);
-
-                    if (temp.x != -1) {
-                        if (temp.x < out.x) {
-                            out = temp;
-                            oof = false;
-                        }
-
-
-                    }
-
-
-
-
-
-
-                }
-
-            }
-
-        }
-
-    
-
-        if (oof == true) {
-            out = make_float3(-1, 0, 0);
-
-        }
-
-        return out;
-
 
 }
 
@@ -1779,17 +1570,17 @@ __device__ float3 random_in_unit_disk() {
         return p;
     }
 }
-__global__ void addKernel(int* outputr, int* outputg, int* outputb, float* settings, bvh* bvhtree, singleobject* b, cudaTextureObject_t* tex, int divisor)
+__global__ void Kernel(int* outputr, int* outputg, int* outputb, float* settings, bvh* bvhtree, singleobject* b, cudaTextureObject_t* tex)
 {
    
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int w = x * SCREEN_HEIGHT + y;
-    float aspect = float(SCREEN_WIDTH / divisor) / float(SCREEN_HEIGHT / divisor);
-    float u =( float(x) / float(SCREEN_WIDTH / divisor));
-    float v =float(y) / float(SCREEN_HEIGHT / divisor);
+    float aspect = float(SCREEN_WIDTH / settings[11]) / float(SCREEN_HEIGHT / settings[11]);
+    float u =( float(x) / float(SCREEN_WIDTH / settings[11]));
+    float v =float(y) / float(SCREEN_HEIGHT / settings[11]);
     // * aspect
-    if ((x >= SCREEN_WIDTH / divisor) || (y >= SCREEN_HEIGHT / divisor)) return;
+    if ((x >= SCREEN_WIDTH / settings[11]) || (y >= SCREEN_HEIGHT / settings[11])) return;
     outputr[w] = 0;
     outputg[w] = 0;
     outputb[w] = 0;
@@ -1839,8 +1630,8 @@ __global__ void addKernel(int* outputr, int* outputg, int* outputb, float* setti
 
         double rand1 = curand_uniform_double(&state);
         double rand2 = curand_uniform_double(&state);
-        float nu = ((float(x) + rand1) / float(SCREEN_WIDTH / divisor));
-        float nv = (float(y) + rand2) / float(SCREEN_HEIGHT / divisor);
+        float nu = ((float(x) + rand1) / float(SCREEN_WIDTH / settings[11]));
+        float nv = (float(y) + rand2) / float(SCREEN_HEIGHT / settings[11]);
         float3 rd = make3(lens_radius) * random_in_unit_disk();
         float3 offset = uu * make3(rd.x) + vu * make3(rd.y);
         float3 dir = lower_left_corner + make3(nu) * horizontal + make3(nv) * vertical - origin-offset;
@@ -2455,7 +2246,7 @@ void split(int input[],int* a, int* b, int num, singleobject* bb) {
 
 void build_bvh(bvh* nbvhtree, singleobject* bb) {
 
- 
+    //build bounding volume heirarchy
     bvhunder* under = new bvhunder[bvhnum];
 
     //clear bvh
@@ -2611,38 +2402,7 @@ void build_bvh(bvh* nbvhtree, singleobject* bb) {
 
     }
     delete[] under;
-    /*
-    int partition1 = 7 / 2;
-    int partition2 = 7 - partition1;
-
-
-    int a[partition1];
-    int b[partition2];
-    int objs[7];
-    for (int o = 0; o < 7; ++o) {
-
-        objs[o] = o;
-
-    }
-    split(objs, a,b,7);
-    int part1 = 7 / 2;
-
-    for (int o = 0; o < part1; ++o) {
-
-        std::cout << a[o] << "\n";
-        npos[a[o]].x -= 2;
-
-    }
-    std::cout <<"b:" << "\n";
-    for (int o = 0; o < partition2; ++o) {
-
-        std::cout << b[o] << "\n";
-        npos[b[o]].x += 2;
-    }
-
-
-   
-*/
+  
 
 
 }
@@ -2654,7 +2414,7 @@ void build_bvh(bvh* nbvhtree, singleobject* bb) {
 void readtextures(cudaTextureObject_t* texarray,std::string* texpaths) {
 
 
-
+    //load textures and alloacate them
     for (int i = 0; i < texnum; i++)
     {
         unsigned char* hData = NULL;
@@ -2662,16 +2422,11 @@ void readtextures(cudaTextureObject_t* texarray,std::string* texpaths) {
         char* imagePath = strcpy(new char[texpaths[i].length() + 1], texpaths[i].c_str());
 
 
-        if (sdkLoadPPM4(imagePath, &hData, &width, &height) == 0) {
+        sdkLoadPPM4(imagePath, &hData, &width, &height);
 
 
-        }
-        //std::cout << "Error load pic. \n";
-        else {
-
-
-        }
-        //std::cout << "dim " << width << height << " Succeeded. \n";
+        
+     
 
         unsigned int sizee = width * height * sizeof(uchar4);
 
@@ -2712,7 +2467,7 @@ void readtextures(cudaTextureObject_t* texarray,std::string* texpaths) {
 
 
 
-
+        //add to array
         texarray[i] = tex;
         delete[] imagePath;
     }
@@ -2721,7 +2476,7 @@ void readtextures(cudaTextureObject_t* texarray,std::string* texpaths) {
 
 
 int getppmnum() {
-
+    //get number of ppm textures
     std::string path = fs::current_path().string();
      int i = 0;
     for (const auto& entry : fs::directory_iterator(path)) {
@@ -2729,20 +2484,20 @@ int getppmnum() {
         std::string newpath{ entry.path().u8string() };
         if (newpath.find("ppm") != std::string::npos || newpath.find("PPM") != std::string::npos) {
            
-            std::cout << entry.path() << std::endl;
+            std::cout << "Found: " << entry.path() << std::endl;
 
             i++;
         }
         
 
     }
-    std::cout << i << std::endl;
+    std::cout << i << " textures total" << std::endl;
     return i;
       
 }
 
 void getppmpaths(std::string* things) {
-
+    //add texture paths to array
     std::string path = fs::current_path().string();
     int i = 0;
     for (const auto& entry : fs::directory_iterator(path)) {
@@ -2764,47 +2519,70 @@ void getppmpaths(std::string* things) {
 
 int main(int argc, char* args[])
 {
-   
+    //check args so that files can be opened directly
     std::string filename;
     if (argc < 2)
     {
+        //use defualt scene
+        std::cout << "Opening Default Scene" << std::endl;
         filename = "scene.rts";
     }
     else
     {
         filename = args[1];
+        std::cout << "Opening:" << filename << std::endl;
     }
-   \
-    objnum = getnum(filename);
-
-    singleobject* allobjects = new singleobject[objnum];
-    texnum = getppmnum();
-    std::string* texpaths = new std::string[texnum];
-    getppmpaths(texpaths);
-    read(filename, allobjects,texpaths);
-    // Add vectors in parallel.
-    bvhnum = nanum[0]*2;
-   bvh* nbvhtree = new bvh[bvhnum];
-
    
 
+    //get number of objects
+    objnum = getnum(filename);
+    std::cout << objnum << " objects/faces total" << std::endl;
+
+
+
+    //create object array
+    singleobject* allobjects = new singleobject[objnum];
+    //get number of textures
+    texnum = getppmnum();
+
+    //create texure paths array
+    std::string* texpaths = new std::string[texnum];
+    //get texture paths
+    getppmpaths(texpaths);
+    //read rts file
+    read(filename, allobjects,texpaths);
+    //calulate max number of bvh nodes
+    bvhnum = nanum[0]*2;
+    //create bvh array
+    bvh* nbvhtree = new bvh[bvhnum];
+
+   
+    //create texure  array
    cudaTextureObject_t* textures = new cudaTextureObject_t[texnum];
   
-
+   //read textures
    readtextures(textures, texpaths);
 
 
 
 
+   //build bounding volume heirarchy
+   //vars with n in front are cpu version that will be loaded onto gpu
 
-   int td = 1;
-
-
-
-
-
-
+   std::cout << "Building BVH.." << std::endl;
     build_bvh(nbvhtree, allobjects);
+    std::cout << "Done!" << std::endl;
+
+    std::cout << bvhnum << " nodes total" << std::endl;
+
+    //update global variables
+    //this can be moved to the CudaStarter function to have these change over time eg: nbackgroundintensity[0] -= 0.1
+    
+    nbvhnumnum[0] = bvhnum;
+    cudaMemcpyToSymbol(anum, &nanum[0], size_t(1) * sizeof(int), size_t(0), cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(dbvhnumnum, &nbvhnumnum[0], size_t(1) * sizeof(int), size_t(0), cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(edebugnum, &debugnum[0], size_t(1) * sizeof(int), size_t(0), cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(backgroundintensity, &nbackgroundintensity[0], size_t(1) * sizeof(float), size_t(0), cudaMemcpyHostToDevice);
     
     SDL_Event event;
    
@@ -2814,7 +2592,11 @@ int main(int argc, char* args[])
     SDL_Renderer* renderer;
     //The surface contained by the window
     SDL_Surface* screenSurface = NULL;
-
+    std::cout << "Opening Window:" << std::endl;
+    std::cout << std::endl;
+    std::cout << std::endl;
+    std::cout << std::endl;
+    std::cout << std::endl;
     //Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
     {
@@ -2833,62 +2615,68 @@ int main(int argc, char* args[])
         }
         else
         {
-            //Get window surface
-
-
-            //Fill the surface white
-
-
-            //Update the surface
+          
 
 
 
 
-           
+            int td;
             while (!quit)
             {
+
+
+                //td is how much the resolution is being divied by for preview
                 td = 1;
 
-                //for motion blur just dont reset iter with motion 
-           
+              
+                //pnum is which preview stage we are on. I decided on 3 in total
                 int pnum = 0;
+
+                //start timer
                 std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
+                //if first sample render and 1/8 res
                 if (iter == 0) {
 
-                    cudaError_t cudaStatus = addWithCuda(outr, outg, outb, nbvhtree, allobjects,textures,8);
+                    cudaError_t cudaStatus = CudaStarter(outr, outg, outb, nbvhtree, allobjects,textures,8);
 
 
                     td = 8;
                     iter++;
                 }
+
+                //if second sample render and 1/4 res. We are now on the second preview stage
                 else if (iter == 1) {
 
-                    cudaError_t cudaStatus = addWithCuda(outr, outg, outb, nbvhtree, allobjects, textures, 4);
+                    cudaError_t cudaStatus = CudaStarter(outr, outg, outb, nbvhtree, allobjects, textures, 4);
                     td = 4;
                     pnum = 1;
 
                     iter++;
                 }
 
+                //if on third sample render and 1/2 res
+
                 else if (iter == 2) {
 
-                    cudaError_t cudaStatus = addWithCuda(outr, outg, outb, nbvhtree, allobjects, textures, 2);
+                    cudaError_t cudaStatus = CudaStarter(outr, outg, outb, nbvhtree, allobjects, textures, 2);
                     td = 2;
                     pnum = 2;
                     
                     iter++;
                 }
-
+                //now we can start the full res render
                 else if (iter == 3) {
-                    cudaError_t cudaStatus = addWithCuda(outr, outg, outb, nbvhtree, allobjects, textures, 1);
+                    cudaError_t cudaStatus = CudaStarter(outr, outg, outb, nbvhtree, allobjects, textures, 1);
 
                     pnum = 3;
                     iter++;
 
                 }
-                
+                //keep rendering full res
                 else{
-                    cudaError_t cudaStatus = addWithCuda(noutr, noutg, noutb, nbvhtree, allobjects,textures, 1);
+                    cudaError_t cudaStatus = CudaStarter(noutr, noutg, noutb, nbvhtree, allobjects,textures, 1);
+                    //add samples to prev render
                     for (int i = 0; i < s; ++i) {
                         outr[i] += (noutr[i]);
                         outg[i] += (noutg[i]);
@@ -2897,6 +2685,7 @@ int main(int argc, char* args[])
                     }
                     //number of preview samples
                     pnum = 3;
+                    //increase iteration number each time
                     iter++;
 
                 }
@@ -2929,13 +2718,19 @@ int main(int argc, char* args[])
 
 
 
-
+                //display pixels from output
+                //divide by td to just proccess rendered pixels
                 for (int x = 0; x < SCREEN_WIDTH/td; x++) {
                     for (int y = 0; y < SCREEN_HEIGHT/td; y++) {
+
+                        //calulate w from xa and y
                         int w = x * SCREEN_HEIGHT + y;
+                        //set pixel color, clamp, and proccess samples
                         SDL_SetRenderDrawColor(renderer, clamp(outr[w]/(iter-pnum),0,255), clamp(outg[w]/(iter-pnum),0,255), clamp(outb[w]/(iter - pnum),0,255), 255);
-                        //uncomment next line for party mode!!!!
-                       // SDL_SetRenderDrawColor(renderer, sqrt(outr[w] * iter), sqrt(outg[w] * iter), sqrt(outb[w] * iter), 255);
+                        //uncomment next line for party mode(really trippy)!!!!
+                        // SDL_SetRenderDrawColor(renderer, sqrt(outr[w] * iter), sqrt(outg[w] * iter), sqrt(outb[w] * iter), 255);
+
+                        //here things are upscaled to bigger windows for smaller resolutions
                         SDL_RenderDrawPoint(renderer, x * upscale*td, y * upscale*td);
                         if (upscale > 1 || td>1) {
 
@@ -2954,11 +2749,11 @@ int main(int argc, char* args[])
                       
 
 
-                        // SDL_RenderPresent(renderer);
+                     
 
 
 
-                        SDL_PollEvent(&event);
+                  
 
 
 
@@ -2967,93 +2762,92 @@ int main(int argc, char* args[])
 
                     }
                 }
+
+                //stop timer
                 std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+                //display info
                 std::cout << '\r' << "d: " << debugnum[0] << " " << "Time = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]  " << 1e+6 / std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << " FPS       " << (iter - pnum) * samples_per_pixell << " samples";
 
-                //cam[0] = cam[0] + 1;
+             
 
                
-
-                //xrot[1] = globaltime;
-                SDL_RenderPresent(renderer);
-                //use SDL_PollEvent to stop waiting
-           
-                if (true) {
-                    SDL_PollEvent(&event);
-
-                   
-                    switch (event.type)
-                    {
-                    case SDL_QUIT:
-                        quit = true;
-                        SDL_DestroyRenderer(renderer);
-                        break;
-                    
-
-                    case SDL_KEYDOWN:
-
-                        switch (event.key.keysym.sym) {
-                        case SDLK_RIGHT:
-                            campos.x += 1;
-                            iter = 0;
-                            break;
-                        case SDLK_LEFT:
-                            campos.x -= 1;
-
-                            //for motion blur just dont reset iter with motion 
-
-                            iter = 0;
-                            break;
-                        case SDLK_UP:
-                            campos.z -= 1;
-                            iter = 0;
-                            break;
-                        case SDLK_DOWN:
-                            campos.z += 1;
-                            iter = 0;
-                            break;
-                        case SDLK_w:
-                            campos.y -= 0.5;
-                            iter = 0;
-                            break;
-                        case SDLK_s:
-                            campos.y += 0.5;
-                            iter = 0;
-                            break;
-                        case SDLK_a:
-                            debugnum[0]--;
-                            iter = 0;
-                            break;
-                        case SDLK_d:
-                            debugnum[0]++;
-                            iter = 0;
-                            break;
-                        case SDLK_ESCAPE:
-                            quit = true;
-                            SDL_DestroyRenderer(renderer);
-                            break;
-                       
-                        default:
-                            break;
-                        }
-                    }
+                //get input
+                SDL_PollEvent(&event);
+                //update window
+				SDL_RenderPresent(renderer);
 
 
+              
 
-                }
+                //proccess input
+               
+				switch (event.type)
+				{
+				case SDL_QUIT:
+                    //handle close
+					quit = true;
+					SDL_DestroyRenderer(renderer);
+					break;
 
 
+				case SDL_KEYDOWN:
 
-                /*
-                if (cam[3] > 20 || cam[3] < -20) {
-                    cam[5] = -10;
-                    cam[3] = -abs(cam[3]);
-                }
-                else {
-                    cam[5] = -10;
-                    cam[3] = -abs(cam[3]);
-                }
-                */
+					switch (event.key.keysym.sym) {
+					case SDLK_RIGHT:
+
+                        //move camera right
+						campos.x += 1;
+
+                        //sameple iteration is reset with movement
+                       //for a motion blur effect just dont reset iter with motion 
+						iter = 0;
+						break;
+					case SDLK_LEFT:
+						campos.x -= 1;
+                        //move camera left
+					
+
+						iter = 0;
+						break;
+					case SDLK_UP:
+                        //move camera forward
+						campos.z -= 1;
+						iter = 0;
+						break;
+					case SDLK_DOWN:
+                        //back
+						campos.z += 1;
+						iter = 0;
+						break;
+					case SDLK_w:
+                        //up
+						campos.y -= 0.5;
+						iter = 0;
+						break;
+					case SDLK_s:
+                        //down
+						campos.y += 0.5;
+						iter = 0;
+						break;
+					case SDLK_a:
+                        //a and d cyle through bvh nodes and displays them with the first matirial in the scene
+						debugnum[0]--;
+						iter = 0;
+						break;
+					case SDLK_d:
+						debugnum[0]++;
+						iter = 0;
+						break;
+					case SDLK_ESCAPE:
+                        //handle exi throug escape
+						quit = true;
+						SDL_DestroyRenderer(renderer);
+						break;
+
+					default:
+						break;
+					}
+				}
 
 
 
@@ -3064,33 +2858,44 @@ int main(int argc, char* args[])
 
 
 
-            }
-            
 
 
-        }
-    }
+
+
+
+
+
+			}
+
+
+
+		}
+	}
  
 
 
-    // cudaDeviceReset must be called before exiting in order for profiling and
-    // tracing tools such as Nsight and Visual Profiler to show complete traces.
+   
+    //delete dynamic arrays
     delete[] nbvhtree;
     delete[] allobjects;
     delete[] textures;
-    cudaDeviceReset();
 
+    //reset gpu
+    cudaDeviceReset();
+    //close window
     SDL_DestroyWindow(window);
 
     //Quit SDL subsystems
     SDL_Quit();
-
+    //exit program
     return 0;
 
 }
 
 
-cudaError_t addWithCuda(int* outputr, int* outputg, int* outputb, bvh* nbvhtree, singleobject* allobjects,cudaTextureObject_t* texarray, int divisor)
+
+//this function starts the render kernel
+cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree, singleobject* allobjects,cudaTextureObject_t* texarray, int divisor)
 {
 
 
@@ -3103,52 +2908,53 @@ cudaError_t addWithCuda(int* outputr, int* outputg, int* outputb, bvh* nbvhtree,
 
 
 
-    nbvhnumnum[0] = bvhnum;
   
-
-    const size_t yee = size_t(1)*sizeof(int);
-    const size_t fee = size_t(1) * sizeof(float);
-    cudaMemcpyToSymbol(anum, &nanum[0], yee, size_t(0), cudaMemcpyHostToDevice);
-    cudaMemcpyToSymbol(dbvhnumnum, &nbvhnumnum[0], yee, size_t(0), cudaMemcpyHostToDevice);
-    cudaMemcpyToSymbol(edebugnum, &debugnum[0], yee, size_t(0), cudaMemcpyHostToDevice);
-    cudaMemcpyToSymbol(backgroundintensity, &nbackgroundintensity[0], fee, size_t(0), cudaMemcpyHostToDevice);
-
-   // cudaMemcpyToSymbol(bvhtree, &nbvhtree[0], sizebvh, size_t(0), cudaMemcpyHostToDevice);
 
    
 
-    float settings[11] = { campos.x , campos.y,campos.z, look.x,  look.y,  look.z, aperturee ,focus_diste,fovv, max_depthh, samples_per_pixell };
+   
+    //set up settings values
+    float settings[12] = { campos.x , campos.y,campos.z, look.x,  look.y,  look.z, aperturee ,focus_diste,fovv, max_depthh, samples_per_pixell,divisor };
+
+    //calculate output size
     int size = SCREEN_WIDTH * SCREEN_HEIGHT;
  
-    float* dev_settings = 0;
 
+    //placeholder pointers
+    float* dev_settings = 0;
     int* dev_outputr = 0;
     int* dev_outputg = 0;
     int* dev_outputb = 0;
     bvh* dev_bvhtree = 0;
     singleobject* dev_allobjects = 0;
+
+
+
+    //set up error status
     cudaError_t cudaStatus;
     cudaTextureObject_t* dev_texarray = 0;
-    // Choose which GPU to run on, change this on a multi-GPU system.
-    cudaStatus = cudaSetDevice(0);
+ 
 
 
-    // Allocate GPU buffers for three vectors (two input, one output)    .
+
+    // Allocate GPU buffers.
     cudaStatus = cudaMalloc((void**)&dev_outputr, size * sizeof(int));
     cudaStatus = cudaMalloc((void**)&dev_outputg, size * sizeof(int));
     cudaStatus = cudaMalloc((void**)&dev_outputb, size * sizeof(int));
 
-    cudaStatus = cudaMalloc((void**)&dev_settings, 11 * sizeof(float));
+    cudaStatus = cudaMalloc((void**)&dev_settings, 12 * sizeof(float));
 
     cudaStatus = cudaMalloc((void**)&dev_bvhtree, bvhnum * sizeof(bvh));
     cudaStatus = cudaMalloc((void**)&dev_allobjects, objnum * sizeof(singleobject));
     cudaStatus = cudaMalloc((void**)&dev_texarray, texnum * sizeof(cudaTextureObject_t));
+
+    //get device
     int device = -1;
     cudaGetDevice(&device);
 
-    // Copy input vectors from host memory to GPU buffers.
-    cudaStatus = cudaMemcpy(dev_settings, settings, 11 * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemPrefetchAsync(dev_settings, 11 * sizeof(float), device, NULL);
+    // Copy input vectors from host memory to GPU buffers(and prefetch?)
+    cudaStatus = cudaMemcpy(dev_settings, settings, 12 * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemPrefetchAsync(dev_settings, 12 * sizeof(float), device, NULL);
 
     cudaStatus = cudaMemcpy(dev_bvhtree, nbvhtree, bvhnum * sizeof(bvh), cudaMemcpyHostToDevice);
     cudaMemPrefetchAsync(dev_bvhtree, bvhnum * sizeof(bvh), device, NULL);
@@ -3159,63 +2965,17 @@ cudaError_t addWithCuda(int* outputr, int* outputg, int* outputb, bvh* nbvhtree,
 
     cudaStatus = cudaMemcpy(dev_texarray, texarray, texnum * sizeof(cudaTextureObject_t), cudaMemcpyHostToDevice);
     cudaMemPrefetchAsync(dev_texarray, texnum * sizeof(cudaTextureObject_t), device, NULL);
-    // Launch a kernel on the GPU with one thread for each element.
+
+
+    //calulate blocks and threads
+    //8 seems to work best. Becouse threads need to be evenly divided into block some resolutions may have blank areas near the edges
     dim3 threadsPerBlock(8, 8);
-    //dim3 threadsPerBlock(3, 3);
+
     dim3 numBlocks(SCREEN_WIDTH/divisor / threadsPerBlock.x, SCREEN_HEIGHT/ divisor / threadsPerBlock.y);
 
 
-
-
-    //textures
-    /*
-    unsigned char* hData = NULL;
-    unsigned int width, height;
-    char* imagePath = "test.ppm";
-   
-    sdkLoadPPM4 (imagePath, &hData, &width, &height);
-    unsigned int sizee = width * height * sizeof(uchar4);
-    char* dData = NULL;
-    cudaMalloc((void**)&dData, sizee);
-
-    // Allocate array and copy image data
-    cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<uchar4>();
-    cudaArray* cuArray;
-    cudaMallocArray(&cuArray,
-        &channelDesc,
-        width,
-        height);
-    cudaMemcpyToArray(cuArray,
-        0,
-        0,
-        hData,
-        sizee,
-        cudaMemcpyHostToDevice);
-
-    cudaTextureObject_t         tex;
-    cudaResourceDesc            texRes;
-    memset(&texRes, 0, sizeof(cudaResourceDesc));
-
-    texRes.resType = cudaResourceTypeArray;
-    texRes.res.array.array = cuArray;
-
-    cudaTextureDesc             texDescr;
-    memset(&texDescr, 0, sizeof(cudaTextureDesc));
-
-    texDescr.normalizedCoords = true;
-    texDescr.filterMode = cudaFilterModeLinear;
-    texDescr.addressMode[0] = cudaAddressModeWrap;
-    texDescr.addressMode[1] = cudaAddressModeWrap;
-    texDescr.readMode = cudaReadModeElementType;
-
-   cudaCreateTextureObject(&tex, &texRes, &texDescr, NULL);
-
-   */
-
-
-
-
-    addKernel << <numBlocks, threadsPerBlock >> > (dev_outputr, dev_outputg, dev_outputb, dev_settings, dev_bvhtree, dev_allobjects,dev_texarray,divisor);
+    //Start Kernel!
+    Kernel << <numBlocks, threadsPerBlock >> > (dev_outputr, dev_outputg, dev_outputb, dev_settings, dev_bvhtree, dev_allobjects,dev_texarray);
 
     // Check for any errors launching the kernel
     cudaStatus = cudaGetLastError();
@@ -3230,11 +2990,15 @@ cudaError_t addWithCuda(int* outputr, int* outputg, int* outputb, bvh* nbvhtree,
     cudaStatus = cudaMemcpy(outputg, dev_outputg, size * sizeof(int), cudaMemcpyDeviceToHost);
     cudaStatus = cudaMemcpy(outputb, dev_outputb, size * sizeof(int), cudaMemcpyDeviceToHost);
    
+
+    //free memory to avoid filling up vram
     cudaFree(dev_settings);
     cudaFree(dev_allobjects);
     cudaFree(dev_bvhtree);
+    cudaFree(dev_texarray);
 
 Error:
+    //just in case
     cudaFree(dev_outputr);
     cudaFree(dev_outputg);
     cudaFree(dev_outputb);
