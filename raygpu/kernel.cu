@@ -14,16 +14,15 @@
 #include <algorithm>
 #include <helper_functions.h> 
 #include <filesystem>
+#include <math.h>
 
-namespace fs = std::filesystem;
+//##DOGERAY## by Phil
 
-
-//settings
+//settings:
 //render dimensions
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
-
-//factor to scale pixels up for small resoultions
+//factor to scale window up for small resoultions
 const int upscale = 1;
 
 
@@ -31,52 +30,30 @@ const int upscale = 1;
 
 
 
-int debugnum[1] = { -1 };
-
-__constant__ int edebugnum[1] = { 0 };
- int objnum = 10000;
- int texnum = 1;
-
-
-//scene is now stored in scene.rts (ray traced scen file)
-//every line is an object
-//every attribute is sperated by comma(no spaces)
-//there are thirteen attributes(in order)
-// use a slash to comment eg:  /hello
-
-// x,y,z,type, r,g,b,extra, lam, dimx,dimy,dimz,mat
-//for cubes or models you can also add in rotation x,y,z at the end in degrees
-//for traingles position, dimesnn and rotation are each one vertex
-//use r isntead of number for random number bewteen 0 and 1
-//first three are postion: eg: 0,0,-1
-//then there is object type. 0=sphere 1=plane 3=tri
-//the next three are rgb values for the matirials.  should be 0-1 but you can go above for lights
-//next is extra value. 0-1.  Is for fuzzyness when using metal and for refraction index when using glass
-//next is lambert. 0 for no 1 for yes. only for diffuse
-//next three are dimensions. For spheres only the x is needed. For planes x and Y are needed. ignore z for now.
-//lasty spcify what matirial you want.  0=diffuse  1=light   2=chrome 3=metal 4=glass
- //normals and tex coords are in pairs of 3 eg: 1,2,4
- //then come face normals, 3 vertex nromals, 3 text coords, is smooth, is checke tex, color texture name("no" if none)
-//your done now load up the program and it should work
-// put settings with *
-  // *,camx,camy,camz,apeture, lookx,looky,lookz,focus dist, fov, max depth, samples per frame, background intesnisty 
-//end settings
 
 
 
 
+
+//create namespace for filesystem
+namespace fs = std::filesystem;
+
+
+ //object struct
 typedef struct
 {
     int type;
     float3 pos;
 
     float3 rot;
+    //face normals
     float3 norm = { -2, -3, -20 };
 
-
+    //vertex normals
     float3 n1 = { -2, -3, -20 };
     float3 n2 = { -2, -3, -20 };
     float3 n3 = { -2, -3, -20 };
+    //tex coords
     float3 t1 = { 0, 1,0};
     float3 t2 = {0, 0,0};
     float3 t3 = {1,0,0};
@@ -91,24 +68,9 @@ typedef struct
 
 }singleobject;
 
-__constant__ float backgroundintensity[1] = { 1 };
-float nbackgroundintensity[1] = { 1 };
 
 
-float aperturee = 0.01;
-float focus_diste = 3;
-
-
-float3 campos = { 0, 0, 2 };
-float3 look = { 0, 0, 0 };
-int max_depthh = 50;
-int samples_per_pixell = 1;
-int fovv = 45;
-
-__constant__ int anum[1] = { 0 };
-int nanum[1] = { 0 };
-
-
+//BVH node struct
 typedef struct
 {
     bool active ;
@@ -127,6 +89,9 @@ typedef struct
 
 }bvh;
 
+
+
+//CPU only BVH building node helper struct. This is info only used on the cpu for buidling that does not need to be put onto the gpu
 typedef struct
 {
     int under[10000];
@@ -135,58 +100,60 @@ typedef struct
 }bvhunder;
 
 
+
+
+//setup gpu global variables
+int debugnum[1] = { -1 };
+__constant__ int edebugnum[1] = { 0 };
+__constant__ float backgroundintensity[1] = { 1 };
+float nbackgroundintensity[1] = { 1 };
+__constant__ int anum[1] = { 0 };
+int nanum[1] = { 0 };
+int nbvhnumnum[1] = { 0 };
+__constant__ int dbvhnumnum[1] = { 0 };
+
+
+
+
+//set up number global variables
+int objnum = 10000;
+int bvhnum = objnum * 2;
+int texnum = 1;
+int iter = 0;
+
+//settings global variables
+float3 campos = { 0, 0, 2 };
+float3 look = { 0, 0, 0 };
+float aperturee = 0.01;
+float focus_diste = 3;
  int actualbvhnum =0;
+ int max_depthh = 50;
+ int samples_per_pixell = 1;
+ int fovv = 45;
 
-
-
+ //calculate screen size
 const int s = SCREEN_WIDTH * SCREEN_HEIGHT;
 
 
-
-int iter = 0;
+//image data storage
 int outr[s] = { 0 };
 int outg[s] = { 0 };
 int outb[s] = { 0 };
 int noutr[s] = { 0 };
 int noutg[s] = { 0 };
 int noutb[s] = { 0 };
-//objects
+
+
+//cuda starter function 
 cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree, singleobject* allobjects,cudaTextureObject_t* texarray , int divisor);
 
 
-  int bvhnum = objnum * 2;
-  int nbvhnumnum[1] = { 0 };
-  __constant__ int dbvhnumnum[1] = { 0 };
 
 
 
+//vector helper functions:
 #ifndef UNIFIED_MATH_CUDA_H
 #define UNIFIED_MATH_CUDA_H
-
-/*****************************************
-                Vector
-/*****************************************/
-
-__device__
-inline float fastDiv(float numerator, float denominator)
-{
-    return __fdividef(numerator, denominator);
-    //        return numerator/denominator;        
-}
-
-__device__
-inline float getSqrtf(float f2)
-{
-    return sqrtf(f2);
-    //        return sqrt(f2);
-}
-
-__device__
-inline float getReverseSqrt(float f2)
-{
-    return rsqrtf(f2);
-}
-
 __device__
 inline float3 getCrossProduct(float3 a, float3 b)
 {
@@ -197,7 +164,6 @@ inline float3 make3(float a)
 {
     return make_float3(a,a,a);
 }
-
 __device__
 inline float4 getCrossProduct(float4 a, float4 b)
 {
@@ -252,168 +218,7 @@ inline float getLength(float4 a)
 {
     return sqrtf(getDotProduct(a, a));
 }
-
-/*****************************************
-                Matrix3x3
-/*****************************************/
-typedef struct
-{
-    float4 m_row[3];
-}Matrix3x3_d;
-
-__device__
-inline void setZero(Matrix3x3_d& m)
-{
-    m.m_row[0] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
-    m.m_row[1] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
-    m.m_row[2] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
-}
-
-__device__
-inline Matrix3x3_d getZeroMatrix3x3()
-{
-    Matrix3x3_d m;
-    m.m_row[0] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
-    m.m_row[1] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
-    m.m_row[2] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
-    return m;
-}
-
-__device__
-inline void setIdentity(Matrix3x3_d& m)
-{
-    m.m_row[0] = make_float4(1, 0, 0, 0);
-    m.m_row[1] = make_float4(0, 1, 0, 0);
-    m.m_row[2] = make_float4(0, 0, 1, 0);
-}
-
-__device__
-inline Matrix3x3_d getIdentityMatrix3x3()
-{
-    Matrix3x3_d m;
-    m.m_row[0] = make_float4(1, 0, 0, 0);
-    m.m_row[1] = make_float4(0, 1, 0, 0);
-    m.m_row[2] = make_float4(0, 0, 1, 0);
-    return m;
-}
-
-__device__
-inline Matrix3x3_d getTranspose(const Matrix3x3_d m)
-{
-    Matrix3x3_d out;
-    out.m_row[0] = make_float4(m.m_row[0].x, m.m_row[1].x, m.m_row[2].x, 0.f);
-    out.m_row[1] = make_float4(m.m_row[0].y, m.m_row[1].y, m.m_row[2].y, 0.f);
-    out.m_row[2] = make_float4(m.m_row[0].z, m.m_row[1].z, m.m_row[2].z, 0.f);
-    return out;
-}
-
-__device__
-inline Matrix3x3_d MatrixMul(Matrix3x3_d& a, Matrix3x3_d& b)
-{
-    Matrix3x3_d transB = getTranspose(b);
-    Matrix3x3_d ans;
-    //        why this doesn't run when 0ing in the for{}
-    a.m_row[0].w = 0.f;
-    a.m_row[1].w = 0.f;
-    a.m_row[2].w = 0.f;
-    for (int i = 0; i < 3; i++)
-    {
-        //        a.m_row[i].w = 0.f;
-        ans.m_row[i].x = dot3F4(a.m_row[i], transB.m_row[0]);
-        ans.m_row[i].y = dot3F4(a.m_row[i], transB.m_row[1]);
-        ans.m_row[i].z = dot3F4(a.m_row[i], transB.m_row[2]);
-        ans.m_row[i].w = 0.f;
-    }
-    return ans;
-}
-
-/*****************************************
-                Quaternion
-/*****************************************/
-
-typedef float4 Quaternion;
-
-__device__
-inline Quaternion quaternionMul(Quaternion a, Quaternion b);
-
-__device__
-inline Quaternion qtNormalize(Quaternion in);
-
-__device__
-inline float4 qtRotate(Quaternion q, float4 vec);
-
-__device__
-inline Quaternion qtInvert(Quaternion q);
-
-__device__
-inline Matrix3x3_d qtGetRotationMatrix(Quaternion q);
-
-__device__
-inline Quaternion quaternionMul(Quaternion a, Quaternion b)
-{
-    Quaternion ans;
-    ans = getCrossProduct(a, b);
-    ans = make_float4(ans.x + a.w * b.x + b.w * a.x + b.w * a.y, ans.y + a.w * b.y + b.w * a.z, ans.z + a.w * b.z, ans.w + a.w * b.w + b.w * a.w);
-    //        ans.w = a.w*b.w - (a.x*b.x+a.y*b.y+a.z*b.z);
-    ans.w = a.w * b.w - dot3F4(a, b);
-    return ans;
-}
-
-__device__
-inline Quaternion qtNormalize(Quaternion in)
-{
-    return getNormalizedVec(in);
-    //        in /= length( in );
-    //        return in;
-}
-
-__device__
-inline Quaternion qtInvert(const Quaternion q)
-{
-    return make_float4(-q.x, -q.y, -q.z, q.w);
-}
-
-__device__
-inline float4 qtRotate(const Quaternion q, const float4 vec)
-{
-    Quaternion qInv = qtInvert(q);
-    float4 vcpy = vec;
-    vcpy.w = 0.f;
-    float4 out = quaternionMul(quaternionMul(q, vcpy), qInv);
-    return out;
-}
-
-__device__
-inline float4 qtInvRotate(const Quaternion q, const float4 vec)
-{
-    return qtRotate(qtInvert(q), vec);
-}
-
-__device__
-inline Matrix3x3_d qtGetRotationMatrix(Quaternion quat)
-{
-    float4 quat2 = make_float4(quat.x * quat.x, quat.y * quat.y, quat.z * quat.z, 0.f);
-    Matrix3x3_d out;
-
-    out.m_row[0].x = 1 - 2 * quat2.y - 2 * quat2.z;
-    out.m_row[0].y = 2 * quat.x * quat.y - 2 * quat.w * quat.z;
-    out.m_row[0].z = 2 * quat.x * quat.z + 2 * quat.w * quat.y;
-    out.m_row[0].w = 0.f;
-
-    out.m_row[1].x = 2 * quat.x * quat.y + 2 * quat.w * quat.z;
-    out.m_row[1].y = 1 - 2 * quat2.x - 2 * quat2.z;
-    out.m_row[1].z = 2 * quat.y * quat.z - 2 * quat.w * quat.x;
-    out.m_row[1].w = 0.f;
-
-    out.m_row[2].x = 2 * quat.x * quat.z - 2 * quat.w * quat.y;
-    out.m_row[2].y = 2 * quat.y * quat.z + 2 * quat.w * quat.x;
-    out.m_row[2].z = 1 - 2 * quat2.x - 2 * quat2.y;
-    out.m_row[2].w = 0.f;
-
-    return out;
-}
-
-
+//vector operators
 __host__ __device__  float3 operator+(const float3& a, const float3& b) {
 
     return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
@@ -434,43 +239,18 @@ __host__ __device__  float3 operator/(const float3& a, const float3& b) {
     return make_float3(a.x / b.x, a.y / b.y, a.z / b.z);
 
 }
+#endif  // UNIFIED_MATH_CUDA_H
 
-
-
-__device__ bool set_face_normal(float3 dir, float3 outward_normal) {
+//calculate normal direction
+__device__ bool get_face_normal(float3 dir, float3 outward_normal) {
     bool front_face = getDotProduct(dir, outward_normal) < 0;
     return front_face;
 }
-__device__ bool aabb(float3 o, float3 d, float3 a, float3 b) {
-    float t_min = 0;
-    float t_max = 10000;
-    float origin[3] = { o.x,o.y,o.z };
-    float direction[3] = { d.x,d.y,d.z };
-    float min[3] = { a.x,a.y,a.z };
-    float max[3] = { b.x,b.y,b.z };
-    for (int a = 0; a < 3; a++) {
-        auto invD = 1.0f / direction[a];
-        auto t0 = (min[a] - origin[a]) * invD;
-        auto t1 = (max[a] - origin[a]) * invD;
-        if (invD < 0.0f) {
-
-            float old = t0;
-            t0 = t1;
-
-            t1 = old;
-
-        }
 
 
-        t_min = t0 > t_min ? t0 : t_min;
-        t_max = t1 < t_max ? t1 : t_max;
-        if (t_max <= t_min)
-            return false;
-    }
-    return true;
-}
 
 
+//bounding box (with distance)
 __device__ bool aabb2(float3 o, float3 d, float3 a, float3 b, float &dist) {
     float t_min = 0;
     float t_max = 10000;
@@ -502,25 +282,8 @@ __device__ bool aabb2(float3 o, float3 d, float3 a, float3 b, float &dist) {
 
     return true;
 }
-__device__ float3 hit_rect(float t_min, float t_max, float3 origin, float3 dir, double x0, double x1, double y0, double y1, double k) {
 
-    float3 outward_normal = make_float3(0, 0, 1);
-    float norm = set_face_normal(dir, outward_normal);
-    float t = (k - origin.z) /dir.z;
-    if (t < t_min || t > t_max)
-        return make_float3(-1,norm,0);
-    auto x = origin.x + t *dir.x;
-    auto y = origin.y + t *dir.y;
-    if (x < x0 || x > x1 || y < y0 || y > y1)
-        return make_float3(-1, norm, 0);
-   
-  
- 
-  
-  
-    return make_float3(t,norm,0);
-}
-
+//triangle hit
 __device__ float3 hit_tri(float3 rayOrigin,
     float3 rayVector,
    float3 vertex0, float3 vertex1, float3 vertex2)
@@ -528,11 +291,7 @@ __device__ float3 hit_tri(float3 rayOrigin,
  
  
         const float EPSILON = 0.01;
-        float3 v0v1 = vertex1 - vertex0;
-        float3 v0v2 = vertex2 - vertex0;
-        // no need to normalize
-        float3 N = getCrossProduct(v0v1, v0v2);
-        float norm = set_face_normal(rayVector, N);
+  
         float3 edge1, edge2, h, s, q;
         float a, f, u, v;
         edge1 = vertex1 - vertex0;
@@ -540,36 +299,38 @@ __device__ float3 hit_tri(float3 rayOrigin,
         h = getCrossProduct(rayVector, edge2);
         a = getDotProduct(edge1, h);
         if (a > -EPSILON && a < EPSILON)
-            return make_float3(-1, norm, 0);    // This ray is parallel to this triangle.
+            return make_float3(-1, 0, 0);   
         f = 1.0 / a;
         s = rayOrigin - vertex0;
         u = f * getDotProduct(s, h);
         if (u < 0.0 || u > 1.0)
-            return make_float3(-1, norm, 0);
+            return make_float3(-1, 0, 0);
         q = getCrossProduct(s, edge1);
         v = f * getDotProduct(rayVector, q);
         if (v < 0.0 || u + v > 1.0)
-            return make_float3(-1, norm, 0);
-        // At this stage we can compute t to find out where the intersection point is on the line.
+            return make_float3(-1, 0, 0);
+   
         float t = f * getDotProduct(edge2, q);
         if (t > EPSILON) // ray intersection
         {
 
-            return make_float3(t, norm, 0);
+            return make_float3(t, 0, 0);
         }
-        else // This means that there is a line intersection but not a ray intersection.
-            return make_float3(-1, norm, 0);
+        else
+            return make_float3(-1, 0, 0);
 
    
 }
+
+//sphere hit
 __device__ float3 hit_sphere(const float3 center, float radius, float3 origin, float3 dir) {
     float3 off = make3(radius+0.1);
-    if (aabb(origin, dir, center - off, center + off)) {
+   
         float3 oc = origin - center;
         float a = pow(getLength(dir), 2.0f);
         float half_b = getDotProduct(oc, dir);
         float3 outward_normal = (origin - center) / make3(radius);
-        float norm = set_face_normal(dir, outward_normal);
+        float norm = get_face_normal(dir, outward_normal);
         float c = pow(getLength(oc), 2.0f) - radius * radius;
         float discriminant = half_b * half_b - a * c;
         if (discriminant < 0) {
@@ -578,337 +339,44 @@ __device__ float3 hit_sphere(const float3 center, float radius, float3 origin, f
         else {
             return make_float3((-half_b - sqrt(discriminant)) / a, norm, 0);
         }
-    } else{
-
-        return make_float3(-1.0, 0, 0);
-    }
-}
-
-
-__device__ void set3(int w, float3 x, float3 y, float3 z, float3 *outx, float3* outy, float3* outz) {
-    outx[w] = x;
-    outy[w] = y;
-    outz[w] = z;
-
-}
-
-
-
-__device__ float3 hit_cube(float3 origin, float3 dir, float3 position, float3 dimension, float3 &vex, float3 rotation, float3& p, float3& newdir) {
-  
-    float mindist = 10000;
-    bool yes = true;
-    float closest = 0;
-    float normaldir = 0;
-    int which = 0;
-    p = origin;
-    newdir = dir;
-    origin = origin - position;
  
-    position = make3(0);
-
-   
-  
-
-    if (rotation.x > 0) {
-        float3 originn = origin;
-        float3 dirr = dir;
+}
+//get bouding box dimensions for objects
+__host__ __device__ bool bounding_box(int obj, float3& min, float3& max, singleobject* b) {
 
 
 
-        float radians = rotation.x * M_PI / 180;
+    if (b[obj].type == 0) {
 
-        float sin_theta = sin(radians);
-        float cos_theta = cos(radians);
-
-
-        originn.y = cos_theta * origin.y - sin_theta * origin.z;
-        originn.z = sin_theta * origin.y + cos_theta * origin.z;
-
-
-          origin = originn;
-        dirr.y = cos_theta * dir.y - sin_theta * dir.z;
-        dirr.z = sin_theta * dir.y + cos_theta * dir.z;
-
-      
-        dir = dirr;
-
+        min = b[obj].pos - make3(b[obj].dim.x);
+        max = b[obj].pos + make3(b[obj].dim.x);
     }
 
 
-    if (rotation.y > 0) {
-        float3 originn = origin;
-        float3 dirr = dir;
 
-
-
-        float radians = rotation.y * M_PI / 180;
-
-        float sin_theta = sin(radians);
-        float cos_theta = cos(radians);
-
-
-        originn.x = cos_theta * origin.x - sin_theta * (origin.z);
-        originn.z = sin_theta * origin.x + cos_theta * (origin.z);
-        origin = originn;
-
-
-        dirr.x = cos_theta * dir.x - sin_theta * dir.z;
-        dirr.z = sin_theta * dir.x + cos_theta * dir.z;
-
-      
-        dir = dirr;
-
-    }
-    if (rotation.z > 0) {
-        float3 originn = origin;
-        float3 dirr = dir;
-
-
-
-        float radians = rotation.z * M_PI / 180;
-
-        float sin_theta = sin(radians);
-        float cos_theta = cos(radians);
-
-
-        originn.x = cos_theta * origin.x - sin_theta * (origin.y);
-        originn.y = sin_theta * origin.x + cos_theta * (origin.y);
-
-        origin = originn;
-
-        dirr.x = cos_theta * dir.x - sin_theta * dir.y;
-        dirr.y = sin_theta * dir.x + cos_theta * dir.y;
-
+    else  if (b[obj].type == 2) {
+        float3 v1 = b[obj].pos;
+        float3 v2 = b[obj].dim;
+        float3 v3 = b[obj].rot;
        
-        dir = dirr;
 
-    }
-   
- 
-   
-      
-            float3 dists[12];
-            float3 x[12];
-            float3 y[12];
-            float3 z[12];
-         
-            
-            dists[0] = hit_tri(origin, dir, position + (make_float3( -1,-1,1)*dimension), position + (make_float3(1, -1, 1) * dimension), position + (make_float3(1, 1, 1) * dimension));
-            set3(0, position + (make_float3(-1, -1, 1) * dimension), position + (make_float3(1, -1, 1) * dimension), position + (make_float3(1, 1, 1) * dimension), x, y, z);
-            
-            dists[1] = hit_tri(origin, dir, position + (make_float3(-1, -1, 1) * dimension), position + (make_float3(1, 1, 1) * dimension), position + (make_float3(-1, 1, 1) * dimension));
-            set3(1, position + (make_float3(-1, -1, 1) * dimension), position + (make_float3(1, 1, 1) * dimension), position + (make_float3(-1, 1, 1) * dimension), x, y, z);
-            dists[2] = hit_tri(origin, dir, position + (make_float3(1, -1, 1) * dimension), position + (make_float3(1, -1, -1) * dimension), position + (make_float3(1, 1, -1) * dimension));
-            set3(2, position + (make_float3(1, -1, 1) * dimension), position + (make_float3(1, -1, -1) * dimension), position + (make_float3(1, 1, -1) * dimension), x, y, z);
-
-            dists[3] = hit_tri(origin, dir, position + (make_float3(1, -1, 1) * dimension), position + (make_float3(1, 1, -1) * dimension), position + (make_float3(1, 1, 1) * dimension));
-            set3(3, position + (make_float3(1, -1, 1) * dimension), position + (make_float3(1, 1, -1) * dimension), position + (make_float3(1, 1, 1) * dimension), x, y, z);
-
-            dists[4] = hit_tri(origin, dir, position + (make_float3(1, -1, -1) * dimension), position + (make_float3(-1, -1, -1) * dimension), position + (make_float3(-1, 1, -1) * dimension));
-
-            set3(4, position + (make_float3(1, -1, -1) * dimension), position + (make_float3(-1, -1, -1) * dimension), position + (make_float3(-1, 1, -1) * dimension), x, y, z);
-            dists[5] = hit_tri(origin, dir, position + (make_float3(1, -1, -1) * dimension), position + (make_float3(-1, 1, -1) * dimension), position + (make_float3(1, 1, -1) * dimension));
-            set3(5, position + (make_float3(1, -1, -1) * dimension), position + (make_float3(-1, 1, -1) * dimension), position + (make_float3(1, 1, -1) * dimension), x, y, z);
-
-            dists[6] = hit_tri(origin, dir, position + (make_float3(-1, -1, -1) * dimension), position + (make_float3(-1, -1, 1) * dimension), position + (make_float3(-1, 1, 1) * dimension));
-            set3(6, position + (make_float3(-1, -1, -1) * dimension), position + (make_float3(-1, -1, 1) * dimension), position + (make_float3(-1, 1, 1) * dimension), x, y, z);
-
-            dists[7] = hit_tri(origin, dir, position + (make_float3(-1, -1, -1) * dimension), position + (make_float3(-1, 1, 1) * dimension), position + (make_float3(-1, 1, -1) * dimension));
-            set3(7, position + (make_float3(-1, -1, -1) * dimension), position + (make_float3(-1, 1, 1) * dimension), position + (make_float3(-1, 1, -1) * dimension), x, y, z);
-            dists[8] = hit_tri(origin, dir, position + (make_float3(-1, 1, 1) * dimension), position + (make_float3(1, 1, 1) * dimension), position + (make_float3(1, 1, -1) * dimension));
-            set3(8, position + (make_float3(-1, 1, 1) * dimension), position + (make_float3(1, 1, 1) * dimension), position + (make_float3(1, 1, -1) * dimension), x, y, z);
-            dists[9] = hit_tri(origin, dir, position + (make_float3(-1, 1, 1) * dimension), position + (make_float3(1, 1, -1) * dimension), position + (make_float3(-1, 1, -1) * dimension));
-            set3(9, position + (make_float3(-1, 1, 1) * dimension), position + (make_float3(1, 1, -1) * dimension), position + (make_float3(-1, 1, -1) * dimension), x, y, z);
-            dists[10] = hit_tri(origin, dir, position + (make_float3(1, -1, 1) * dimension), position + (make_float3(-1, -1, -1) * dimension), position + (make_float3(1, -1, -1) * dimension));
-            set3(10, position + (make_float3(1, -1, 1) * dimension), position + (make_float3(-1, -1, -1) * dimension), position + (make_float3(1, -1, -1) * dimension), x, y, z);
-         dists[11] = hit_tri(origin, dir, position + (make_float3(1, -1, 1) * dimension), position + (make_float3(-1, -1, 1) * dimension), position + (make_float3(-1, -1, -1) * dimension));
-         set3(11, position + (make_float3(1, -1, 1) * dimension), position + (make_float3(-1, -1, 1) * dimension), position + (make_float3(-1, -1, -1) * dimension), x, y, z);
-            for (int xx = 0; xx < 12; xx++) {
-                if (dists[xx].x < mindist && dists[xx].x > -0.05) {
-                    mindist = dists[xx].x;
-                    which = xx;
-                    normaldir = dists[xx].y;
-                   
-                    yes = false;
-                   
-                }
-
-            }
-
-            float3 vertex0 = x[which];
-            float3 vertex1 = y[which];
-            float3 vertex2 = z[which];
-
-
-            float3 v0v1 = vertex1 - vertex0;
-            float3 v0v2 = vertex2 - vertex0;
-            // no need to normalize
-            float3 N = getNormalizedVec(getCrossProduct(v0v1, v0v2));
-
-          //  p = origin + (make3(mindist) * dir);
-         //   p = p + position;
-            if (rotation.x > 0) {
-                float3 nn = N;
-                float radians = rotation.x * M_PI / 180;
-
-                float sin_theta = sin(radians);
-                float cos_theta = cos(radians);
-
-                nn.y = cos_theta * N.y + sin_theta * N.z;
-                nn.z = -sin_theta * N.y + cos_theta * N.z;
-                N = nn;
-
-
-                
-
-
-            }
-            if (rotation.y > 0) {
-                float3 nn = N;
-                float radians = rotation.y * M_PI / 180;
-
-                float sin_theta = sin(radians);
-                float cos_theta = cos(radians);
-
-                nn.x = cos_theta * N.x + sin_theta * N.z;
-                nn.z = -sin_theta * N.x + cos_theta * N.z;
-                N = nn;
-
-              
-            }
-            if (rotation.z > 0) {
-                float3 nn = N;
-                float radians = rotation.z * M_PI / 180;
-
-                float sin_theta = sin(radians);
-                float cos_theta = cos(radians);
-
-                nn.x = cos_theta * N.x + sin_theta * N.y;
-                nn.y = -sin_theta * N.x + cos_theta * N.y;
-                N = nn;
-
-             
-            }
-            vex = N;
-          //normaldir = set_face_normal(dir, N);
-            if (yes) {
-
-                mindist = -1;
-            }
-      
-            return make_float3(mindist, normaldir, which);
-            
-
-    
-   
-    
-  return make_float3(-1.0, 0, 0);
-
-
-}
-
-
-bool bounding_box(int obj, float3& min, float3& max, singleobject* b) {
-
-
-
-    if (b[obj].type == 0) {
-
-        min = b[obj].pos - make3(b[obj].dim.x);
-        max = b[obj].pos + make3(b[obj].dim.x);
-    }
-
-    else  if (b[obj].type == 1) {
-        min = make_float3(b[obj].pos.x, b[obj].pos.y, b[obj].pos.z - 0.0001);
-        max = make_float3(b[obj].pos.x + b[obj].dim.x, b[obj].pos.y + b[obj].dim.y, b[obj].pos.z + 0.0001);
-
-
-
-    }
-
-    else  if (b[obj].type == 2) {
-        float3 v1 = b[obj].pos;
-        float3 v2 = b[obj].dim;
-        float3 v3 = b[obj].rot;
-        float minx = fmin(v1.x, fmin(v2.x, v3.x));
-
-        float miny = fmin(v1.y, fmin(v2.y, v3.y));
-        float minz = fmin(v1.z, fmin(v2.z, v3.z));
-        float maxx = fmax(v1.x, fmax(v2.x, v3.x));
-        float  maxy = fmax(v1.y, fmax(v2.y, v3.y));
-        float  maxz = fmax(v1.z, fmax(v2.z, v3.z));
-
-
-        min = make_float3(minx - 0.01, miny - 0.01, minz - 0.01);
-        max = make_float3(maxx + 0.01, maxy + 0.01, maxz + 0.01);
+        min = make_float3(fmin(v1.x, fmin(v2.x, v3.x)) - 0.01, fmin(v1.y, fmin(v2.y, v3.y)) - 0.01, fmin(v1.z, fmin(v2.z, v3.z)) - 0.01);
+        max = make_float3(fmax(v1.x, fmax(v2.x, v3.x)) + 0.01, fmax(v1.y, fmax(v2.y, v3.y)) + 0.01, fmax(v1.z, fmax(v2.z, v3.z)) + 0.01);
 
 
     }
 
 
-    else  if (b[obj].type == 3) {
 
-        min = b[obj].pos - make3(getLength(b[obj].dim));
-        max = b[obj].pos + make3(getLength(b[obj].dim));
-
-    }
 
     return true;
 
 }
 
 
-__device__ bool dbounding_box(int obj, float3& min, float3& max, singleobject* b) {
 
 
-
-    if (b[obj].type == 0) {
-
-        min = b[obj].pos - make3(b[obj].dim.x);
-        max = b[obj].pos + make3(b[obj].dim.x);
-    }
-
-    else  if (b[obj].type == 1) {
-        min = make_float3(b[obj].pos.x, b[obj].pos.y, b[obj].pos.z - 0.0001);
-        max = make_float3(b[obj].pos.x + b[obj].dim.x, b[obj].pos.y + b[obj].dim.y, b[obj].pos.z + 0.0001);
-
-
-
-    }
-
-    else  if (b[obj].type == 2) {
-        float3 v1 = b[obj].pos;
-        float3 v2 = b[obj].dim;
-        float3 v3 = b[obj].rot;
-        float minx = fmin(v1.x, fmin(v2.x, v3.x));
-
-        float miny = fmin(v1.y, fmin(v2.y, v3.y));
-        float minz = fmin(v1.z, fmin(v2.z, v3.z));
-        float maxx = fmax(v1.x, fmax(v2.x, v3.x));
-        float  maxy = fmax(v1.y, fmax(v2.y, v3.y));
-        float  maxz = fmax(v1.z, fmax(v2.z, v3.z));
-
-
-        min = make_float3(minx - 0.01, miny - 0.01, minz - 0.01);
-        max = make_float3(maxx + 0.01, maxy + 0.01, maxz + 0.01);
-
-
-    }
-
-
-    else  if (b[obj].type == 3) {
-
-        min = b[obj].pos - make3(getLength(b[obj].dim));
-        max = b[obj].pos + make3(getLength(b[obj].dim));
-
-    }
-
-    return true;
-
-}
-
-
+//function for cacluating boudning box of two objects
  void surrounding_box(float3 amin, float3 amax, float3 bmin, float3 bmax, float3 &min,float3 &max) {
     min = make_float3(fmin(amin.x, bmin.x),
         fmin(amin.y, bmin.y),
@@ -920,6 +388,8 @@ __device__ bool dbounding_box(int obj, float3& min, float3& max, singleobject* b
 
    
 }
+
+ //calculate bounding box of array
  bool arraybound(float3 &min, float3 &max, int objs[], int len, singleobject* b) {
     if (len==0) return false;
 
@@ -945,124 +415,102 @@ __device__ bool dbounding_box(int obj, float3& min, float3& max, singleobject* b
     return true;
 }
 
- __device__ float3 bvhhit(float3 origin, float3 dir, float3& vex, float3& rotpoint, float3& newdir, bvh* bvhtree) {
+ //check if bvh node is hit(for preview purposes)
+ __device__ float3 bvhhit(float3 origin, float3 dir , bvh* bvhtree) {
 
 
-
-
+    //check if in valid index
     if (edebugnum[0] < 0 || edebugnum[0] >= dbvhnumnum[0]) {
 
         return make_float3(-1, 0, 0);
     }
+    float dist = 1;
+    if ( aabb2(origin, dir, bvhtree[abs(edebugnum[0])].min, bvhtree[abs(edebugnum[0])].max,dist)) {
 
 
-
-    bvh currentnode = bvhtree[abs(edebugnum[0])];
-
-
-
-    if (aabb(origin, dir, currentnode.min, currentnode.max)) {
-
-
-        return  make_float3(1, 0, 0);
+        return  make_float3(dist, 0, 0);
 
 
 
     }
-
-
-
-
     return make_float3(-1, 0, 0);
 
 }
 
 
-
-
-
-
-
-
-__device__ float3 singlehit(float3 origin, float3 dir, float3& vex, float3& rotpoint, float3& newdir, int x, singleobject* b) {
+//hit function for objects
+__device__ float3 singlehit(float3 origin, float3 dir, int x, singleobject* b) {
 
 
     float mindist = 10000;
-    bool yes = true;
+    bool isnothit = true;
     float closest = 0;
-    float normaldir = 0;
-
     float3 dist;
-    float3 bon;
+
     if (b[x].type == 0) {
         dist = hit_sphere(b[x].pos, b[x].dim.x, origin, dir);
-
-    }
-    else  if (b[x].type == 1) {
-        dist = hit_rect(0, 1000, origin, dir, b[x].pos.x, b[x].pos.x + b[x].dim.x, b[x].pos.y, b[x].pos.y + b[x].dim.y, b[x].pos.z);
 
     }
     else  if (b[x].type == 2) {
         dist = hit_tri(origin, dir, b[x].pos, b[x].dim, b[x].rot);
 
     }
-    else  if (b[x].type == 3) {
-
-        dist = hit_cube(origin, dir, b[x].pos, b[x].dim, bon, b[x].rot, rotpoint, newdir);
-
-    }
 
     if (dist.x < mindist && dist.x > -0.0) {
-        vex = bon;
+    
         mindist = dist.x;
         closest = x;
-        normaldir = dist.y;
-        yes = false;
+     
+        isnothit = false;
     }
 
-    if (yes) {
+    if (isnothit) {
 
         mindist = -1;
     }
-    return make_float3(mindist, closest, normaldir);
+    return make_float3(mindist, closest, 0);
 
 
 }
 
 
+//overall hit function
+__device__ float3 hit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) {
 
-__device__ float3 hit(float3 origin, float3 dir, float3& vex, float3& rotpoint, float3& newdir, bvh* bvhtree, singleobject* b) {
-
-
-    if (bvhhit(origin, dir, vex, rotpoint, newdir, bvhtree).x > -0.1) {
-
-
-        return  make_float3(1, 2, 1);;
-
+    //preview bvh if selected
+    float bvhdist = bvhhit(origin, dir, bvhtree).x;
+    if (bvhdist > -0.1) {
+        return  make_float3(bvhdist, 2, 0);;
     }
 
-
-
-
-
+    //cant dynamically allocate(too big)
+    //becouse array cant be resized the fucntion koves along the array using part of it
     int tracked[10000];
     tracked[0] = 0;
+
+    //array length
     int num = 1;
+    //minimum place in array
     int mini = 0;
+
+
+    //output
     float3 out = make_float3(10000000, 0, 0);
+
+    //is not hit
     bool oof = true;
-    int i = 0;
-    float closest = 100000000;
 
+
+ 
+    //while array is not empty
     while (mini < num) {
-        i++;
-        if (i > anum[0]) {
-            break;
-        }
+    
 
 
-        //get array length
+        //get array length(so it doesnt change)
         int numm = num;
+
+        //for each node in length
         for (int node = mini; node < numm; node++) {
 
 
@@ -1072,7 +520,6 @@ __device__ float3 hit(float3 origin, float3 dir, float3& vex, float3& rotpoint, 
 
 
 
-            //! this seems to have a huge performsance impact! Seems to be the problem with fps
 
 
 
@@ -1081,32 +528,34 @@ __device__ float3 hit(float3 origin, float3 dir, float3& vex, float3& rotpoint, 
 
 
 
-
-
-
-            //remove from array
+            //remove node from array
             mini++;
 
+
+            //get boudning box distance of node
             float dister;
             if (aabb2(origin, dir, bvhtree[tracked[node]].min, bvhtree[tracked[node]].max,dister)) {
-                if (dister < closest) {
-                   
-                    if (bvhtree[tracked[node]].end == true) {
 
-                        float3 temp = singlehit(origin, dir, vex, rotpoint, newdir, bvhtree[tracked[node]].under, b);
-                        if (temp.x > -0.01) {
-                            if (temp.x < out.x) {
+                //if distance is less that minumim distance so far
+                if (dister < out.x) {
+                   //if it is an end node
+                    if (bvhtree[tracked[node]].end == true) {
+                        //run hit function
+                        float3 temp = singlehit(origin, dir, bvhtree[tracked[node]].under, b);
+                        //if hit
+                        if (temp.x > -0.01 && temp.x < out.x) {
+                          
                                 out = temp;
                                 oof = false;
-                                closest = out.x;
-                            }
+                               
+                            
 
 
                         }
 
                     }
                     else {
-
+                        //add child nodes
                         tracked[num] = bvhtree[tracked[node]].children[0];
                         num++;
                         tracked[num] = bvhtree[tracked[node]].children[1];
@@ -1118,7 +567,7 @@ __device__ float3 hit(float3 origin, float3 dir, float3& vex, float3& rotpoint, 
                 }
               
 
-                //add to array
+                
 
 
 
@@ -1158,7 +607,7 @@ __device__ float3 hit(float3 origin, float3 dir, float3& vex, float3& rotpoint, 
 
 
 
-
+//random fucntions
 __device__ float3 random_in_unit_sphere() {
     while (true) {
         curandState state;
@@ -1166,10 +615,8 @@ __device__ float3 random_in_unit_sphere() {
 
         curand_init((unsigned long long)clock() + tId, 0, 0, &state);
 
-        double rand1 = (curand_uniform_double(&state)*2)-1;
-        double rand2 = (curand_uniform_double(&state)*2)-1;
-        double rand3 = (curand_uniform_double(&state)*2)-1;
-        auto p = make_float3(rand1,rand2,rand3);
+       
+        auto p = make_float3((curand_uniform_double(&state) * 2) - 1, (curand_uniform_double(&state) * 2) - 1 , (curand_uniform_double(&state) * 2) - 1);
         if (pow(getLength(p), 2.0f) >= 1) continue;
         return p;
     }
@@ -1187,9 +634,15 @@ __device__ float randy() {
         return rand1;
     }
 }
+
+//functions for mats
+
+
 __device__ float3 reflect( float3 v, float3 n) {
     return v - make_float3(2.0 * getDotProduct(v, n), 2.0 * getDotProduct(v, n), 2.0 * getDotProduct(v, n)) * n;
 }
+
+//clamp function cpu
 float clamp(float x, float min, float max) {
     if (x < min) return min;
     if (x > max) return max;
@@ -1202,6 +655,8 @@ __device__ float3 refract(float3 uv, float3 n, float etai_over_etat) {
     float3 r_out_parallel = make3(-sqrt(fabs(1.0 - pow(getLength(r_out_perp), 2.0f)))) * n;
     return r_out_perp + r_out_parallel;
 }
+
+
 __device__ float reflectance(float cosine, float ref_idx) {
     // Use Schlick's approximation for reflectance.
     float r0 = (1 - ref_idx) / (1 + ref_idx);
@@ -1216,7 +671,10 @@ __device__ float distance(float3 p1, float3 p2)
     float diffX = p1.x - p2.x;
     return sqrt((diffY * diffY) + (diffX * diffX));
 }
-__device__ float3 getnormal(int obj, float3 origin, float3 hitpoint, float3 vex, singleobject* b, float3 dir, float3 &texco) {
+
+
+//function for getting normal of objects
+__device__ float3 getnormal(int obj, float3 origin, float3 hitpoint, singleobject* b, float3 dir, float3 &texco) {
 
     
 
@@ -1225,125 +683,70 @@ __device__ float3 getnormal(int obj, float3 origin, float3 hitpoint, float3 vex,
 
     }
 
- else  if (b[obj].type == 1) {
- 
-        return make_float3(0, 0, 1);
-        }
 
- else  if (b[obj].type == 2) {
-        float3 uv;
+	else  if (b[obj].type == 2) {
+		float3 uv;
 
-        float3 vertex0 = b[obj].pos;
-        float3 vertex1 = b[obj].dim;
-        float3 vertex2 = b[obj].rot;
-      
+		float3 vertex0 = b[obj].pos;
+		float3 vertex1 = b[obj].dim;
+		float3 vertex2 = b[obj].rot;
 
-        float3 v0v1 = vertex1 - vertex0;
-        float3 v0v2 = vertex2 - vertex0;
-        // no need to normalize
-        float3 N =getCrossProduct(v0v1, v0v2);
-
-        /*
-        float d0 = distance(vertex0, hitpoint);
-        float d1 = distance(vertex1, hitpoint);
-        float d2 = distance(vertex2, hitpoint);
-
-        // Our three points.. re-oriented so that 'a' is the farthest
-
-        float3 a, bb, c;
-        float3 na, nb, nc;
-        if (d0 > d1 && d0 > d2)
-        {
-            a = vertex0;
-            bb = vertex1;
-            c = vertex2;
-            na = n0;
-            nb = n1;
-            nc = n2;
-        }
-        else if (d1 > d0 && d1 > d2)
-        {
-            a = vertex1;
-            bb = vertex0;
-            c = vertex2;
-            na = n1;
-            nb = n0;
-            nc = n2;
-        }
-        else // if (d2 > d0 && d2 > d1)
-        {
-            a = vertex2;
-            bb = vertex0;
-            c = vertex1;
-            na = n2;
-            nb = n0;
-            nc = n1;
-        }
-        // Our three points.. re-oriented so that 'a' is the farthest
-       vertex0= a;
-        vertex1 = bb;
-       vertex2 = c;
-       n0 = na;
-       n1= nb;
-         n2 = nc;
+        //get normal
+		float3 v0v1 = vertex1 - vertex0;
+		float3 v0v2 = vertex2 - vertex0;
+	
+		float3 N = getCrossProduct(v0v1, v0v2);
 
 
-        v0v1 = vertex1 - vertex0;
-        v0v2 = vertex2 - vertex0;
 
-     */
-      
-        float3 pvec = getCrossProduct(dir,v0v2);
-        float det = getDotProduct(v0v1,pvec);
+		float3 pvec = getCrossProduct(dir, v0v2);
+		float det = getDotProduct(v0v1, pvec);
 
-        // ray and triangle are parallel if det is close to 0
-       
+	
 
-        float invDet = 1 / det;
 
-        float3 tvec = origin - vertex0;
-        uv.x = getDotProduct(tvec,pvec) * invDet;
-     
+		float invDet = 1 / det;
 
-        float3 qvec =getCrossProduct(tvec,v0v1);
-        uv.y = getDotProduct(dir,qvec) * invDet;
-      
+		float3 tvec = origin - vertex0;
+        //get uv
+		uv.x = getDotProduct(tvec, pvec) * invDet;
 
-        uv.z = 1 - uv.x - uv.y;
 
-        texco = make3(uv.z) * b[obj].t1 + make3(uv.x) * b[obj].t2 + make3(uv.y ) * b[obj].t3;
-        
-        if (b[obj].norm.z != -20) {
-            N = b[obj].norm;
+		float3 qvec = getCrossProduct(tvec, v0v1);
+		uv.y = getDotProduct(dir, qvec) * invDet;
 
-            
-            
-           
-            if (b[obj].n1.z != -20 && b[obj].smooth) {
-               
-                float3 n0 = b[obj].n1;
-                float3 n1 = b[obj].n2;
-                float3 n2 = b[obj].n3;
-                N = make3(uv.z) * n0 + make3(uv.x) * n1 + make3(uv.y) * n2;
-            }
-           
 
-        }
-        return  getNormalizedVec(N);
-    }
+		uv.z = 1 - uv.x - uv.y;
+        //get tex coords
+		texco = make3(uv.z) * b[obj].t1 + make3(uv.x) * b[obj].t2 + make3(uv.y) * b[obj].t3;
 
-   
- else  if (b[obj].type == 3) {
-   
-        return vex;
+        //checl if object uses new system
+		if (b[obj].norm.z != -20) {
+			N = b[obj].norm;
 
-        }
-    return getNormalizedVec(hitpoint - b[obj].pos);
+
+
+            //check if object is smooth
+			if (b[obj].n1.z != -20 && b[obj].smooth) {
+
+				float3 n0 = b[obj].n1;
+				float3 n1 = b[obj].n2;
+				float3 n2 = b[obj].n3;
+				N = make3(uv.z) * n0 + make3(uv.x) * n1 + make3(uv.y) * n2;
+			}
+
+
+		}
+		return  getNormalizedVec(N);
+	}
+
+
+	return getNormalizedVec(hitpoint - b[obj].pos);
 
 
 }
 
-
+//checker uv function
 __device__ float3 checker(float3 uv, float3 p, float3 col1, float3 col2) {
     float u2 = floor(uv.x * 10);
     float v2 = floor(uv.y * 10);
@@ -1353,62 +756,65 @@ __device__ float3 checker(float3 uv, float3 p, float3 col1, float3 col2) {
     else
         return col2;
 }
+
+//main ray fucntion
 __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree, singleobject* b, cudaTextureObject_t* tex) {
+   
     float3 raydir = dir;
     float3 rayo = origin;
     float3 cur_attenuation = make3(1.0f);
     
     for (int i = 0; i < max_depth; i++) {
-        float3 rotpoint;
-        float3 newdir = raydir;
-        float3 vex;
-
-        float3 texco;
-
-        float3 hitoride = hit(rayo, raydir, vex, rotpoint, newdir,bvhtree, b);
-
-        int g = int(hitoride.y);
-        float hit = hitoride.x;
-        if (hit > 0.0) {
-         
-            int matter = b[g].mat;
-            float3 centerofobject = b[g].pos;
-            float3 hitt = make3(hit);
-
-
-
       
-            if (b[g].type == 3) {
+      
+      
+        //initialize texure coords
+        float3 texco;
+        //run hit funciton
+        float3 hitoride = hit(rayo, raydir,bvhtree, b);
+        //get hit object id
+        int g = int(hitoride.y);
+        //get distance
+        float hit = hitoride.x;
 
-                rayo = rotpoint;
-                raydir = newdir;
-            }
+        //if distance is greater than zero (hit)
+        if (hit > 0.0) {
             
+
+        
+         //get hit point
+            float3 hitt = make3(hit);
             float3 hitpoint = rayo + (hitt * raydir);
           
-          
-            float3 N =  getnormal(g, rayo, hitpoint,vex, b, raydir, texco);
-            bool inorout = set_face_normal(dir, N);
-          //  float3 N = getNormalizedVec(hitpoint - centerofobject);
+          //calculate normals and direction
+            float3 N =  getnormal(g, rayo, hitpoint, b, raydir, texco);
+
+            
+            bool inorout = get_face_normal(dir, N);
+     
             N = inorout ? N : N * make3(-1);
 
+
+
+            //get defualt color
             float3 ocolor = b[g].col;
 
-            if (b[g].tex) {
-
-               ocolor =  checker(texco, hitpoint, make3(0.8), b[g].col);
-           
-            
-           
-              
-            }
+            //proccess textures
             if (b[g].texnum >= 0) {
-                uchar4 C = tex2D<uchar4>(tex[b[g].texnum], texco.x, -texco.y+1);
-               // N = getNormalizedVec(N * make_float3(float(C.x) , float(C.y) , float(C.z) ));
+                uchar4 C = tex2D<uchar4>(tex[b[g].texnum], texco.x, -texco.y + 1);
+               
                 ocolor = make_float3(float(C.x) / 255, float(C.y) / 255, float(C.z) / 255);
             }
+            else if (b[g].tex) {
+
+               ocolor =  checker(texco, hitpoint, make3(0.8), b[g].col);
+
+            }
+          
         
-            if (matter == 0) {
+            if (b[g].mat == 0) {
+
+                //diffuse mat
                 float3 target = hitpoint + N;
                     if (b[g].addional.x == 0) {
                         target = target+ random_in_unit_sphere();
@@ -1418,32 +824,23 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
 
                     }
 
-               
 
-                   
-                // checker pattern
-               
+                cur_attenuation = cur_attenuation  * ocolor;
 
-                    cur_attenuation = cur_attenuation  * ocolor;
-              
-               
-                   
-
-                
-              
-                
                 rayo = hitpoint;
                 raydir = getNormalizedVec(target - hitpoint);
                
             }
-            else if (matter == 2) {
-                float3 reflected = reflect(getNormalizedVec(raydir), N);
+            else if (b[g].mat == 2) {
+                //mirror mat
+                
                 cur_attenuation = cur_attenuation * ocolor;
                 rayo = hitpoint;
-                raydir = reflected;
+                raydir = reflect(getNormalizedVec(raydir), N);
 
             }
-            else if (matter == 3) {
+            else if (b[g].mat == 3) {
+                //metal mat
                 float3 reflected = reflect(getNormalizedVec(raydir), N);
                 cur_attenuation = cur_attenuation * ocolor;
                 rayo = hitpoint;
@@ -1452,7 +849,9 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
 
             }
           
-            else if (matter == 4) {
+            else if (b[g].mat == 4) {
+                //glass mat
+
                 float ir = b[g].addional.y;
 
                 float refraction_ratio = inorout ? (1.0 / ir) : ir;
@@ -1478,23 +877,18 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
             }
             
             else{
-                /*
-                if (inorout == 0) {
-
-                    return make3(1) * cur_attenuation;
-                }
-                */
+                //emmisive mat
                 return ocolor * cur_attenuation;
             }
      
-             //return make_float3(N.x , N.y , N.z );
+          
 
 
 
         }
         else {
             
-
+              //calculate envoriment
             float3 unit_direction = getNormalizedVec(raydir);
             float t = 0.5 * (unit_direction.y + 1.0);
             float3 c = make_float3((1.0 - t), (1.0 - t), (1.0 - t)) * make_float3(1.0, 1.0, 1.0) + make_float3(t, t, t) * make_float3(0.5, 0.7, 1.0);
@@ -1504,39 +898,13 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
        
         
     }
+    //return black
     return make_float3(0.0, 0.0, 0.0);
 }
-#endif  // UNIFIED_MATH_CUDA_H
-
-#include <math.h>
-
-//utiltiy functions
-
-/*
-__device__ bool hit_sphere(float3 center, float radius, float3 origin, float3 dir) {
-    float b = 2 * getDotProduct(dir, make_float3(origin.x - center.x, origin.y - center.y, origin.z - center.z));
-    float3 norm =make_float3(origin.x - center.x, origin.y - center.y, origin.z - center.z);
-    float yes = sqrt(norm.x * norm.x + norm.y * norm.y + norm.z * norm.z);
-
-    float c = pow(yes, 2.0f) - pow(radius, 2.);
-    float delta = pow(b, 2) - 4 * c;
-    if (delta > 0) {
-        float t1 = (-b + sqrt(delta)) / 2;
-        float t2 = (-b - sqrt(delta)) / 2;
-        if (t1 > 0 && t2 > 0) {
-
-            return true;
-        }
 
 
-    }
 
-    return false;
-}*/
 
-//make sure to chnage retrunt from float whatever[3] to float* whatever = new float[3] and thendelete it later where it is returned
-
-//ray function. Called for every pixel. Kind of like shader
 
 __device__ float3 random_in_unit_disk() {
     while (true) {
