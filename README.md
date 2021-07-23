@@ -5,7 +5,7 @@ Still WIP.
 Almost all the code is in kernel.cu
 
 Requires CUDA and SDL2
-
+tracker here: https://github.com/users/PhilipPragerUrbina/projects/1
 ###
 Some samples:
 <p align="center">
