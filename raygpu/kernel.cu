@@ -28,7 +28,9 @@ const int upscale = 1;
 //maximum number of traversals(Make larger to load huge models at cost of memory and performance)
 //let me know how to make resizable arrays within a cuda kernel to remove this
 const int maxnum = 10000;
-
+//epsilon value for triangle intersection
+//higher makes stuff dissapear and lower makes stuff speckle. pick your poison
+const int epsilon = 0.0001;
 
 
 
@@ -291,7 +293,7 @@ __device__ float3 hit_tri(float3 rayOrigin,
 {
  
  
-        const float EPSILON = 0.001;
+        const float EPSILON = epsilon;
   
         float3 edge1, edge2, h, s, q;
         float a, f, u, v;

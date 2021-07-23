@@ -26,7 +26,7 @@ class ExportSomeData(Operator, ExportHelper):
         default="*.rts",
         options={'HIDDEN'},
         maxlen=255,  # Max internal buffer length, longer would be clamped.
-    )
+        )
     samples: IntProperty(
         name="Samples per Pixel",
         description="How many samples per update",
@@ -52,10 +52,7 @@ class ExportSomeData(Operator, ExportHelper):
         description="Field of View",
         default=45
         )
-
-    # List of operator properties, the attributes will be assigned
-    # to the class instance from the operator settings before calling.
-    
+ 
 #    use_setting: BoolProperty(
 #        name="Example Boolean",
 #        description="Example Tooltip",
@@ -73,30 +70,21 @@ class ExportSomeData(Operator, ExportHelper):
 #        default='OPT_A',
 #    )
     @classmethod
-    
     def poll(cls, context):
         return context.object is not None
 
     def execute(self, context):
-        file = open(self.filepath, 'w')
-        
-        
-       
+        file = open(self.filepath, 'w')                     
         #print(self.use_setting)
         mesh = bpy.context.object.data
         cam = bpy.context.scene.camera
      
-        
         file.write('/exported from blender')
         file.write('\n')
         file.write( '*,%f,%f,%f,0.01,0,0,0,3,%f,%f,%f,%f' % (cam.location[0], cam.location[1], cam.location[2],self.fover, self.maxbounces,self.samples,self.backgroundi) )
         file.write('\n')
         for face in mesh.polygons:
             
-            
-          
-            
-
             slot = bpy.context.object.material_slots[face.material_index]
             mat = slot.material
             print(mat.name)
@@ -129,7 +117,6 @@ class ExportSomeData(Operator, ExportHelper):
             iqr =  principled.inputs['IOR'].default_value;
             mat = 0;
             
-           
             if(met > 0.5):
                 mat = 3;
             if(trans > 0.5):
@@ -139,11 +126,7 @@ class ExportSomeData(Operator, ExportHelper):
             if(em[0] > 0.5 or em[1] > 0.5 or em[2] > 0.5):
                 mat = 1;
                 mult = self.brighy;
-            
-          
-            
-            
-            
+
             vs = [0,0,0,0,0,0,0]
             i = 0;
             for vert in face.vertices:
@@ -155,12 +138,9 @@ class ExportSomeData(Operator, ExportHelper):
             v3 = mesh.vertices[vs[2]]
             
             
-            
             us = [0,0,0,0,0,0,0]
             uvs = [0,0,0,0,0,0,0]
             m = 0;
-            
-            
             
             for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
                 uv_coords = mesh.uv_layers.active.data[loop_idx].uv
@@ -175,9 +155,9 @@ class ExportSomeData(Operator, ExportHelper):
             if(principled.inputs['Alpha'].default_value < 0.5):
                 tex = 1;
             
-            file.write( '%f,%f,%f,2,%f,%f,%f,%f,0,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%s' % (v1.co.x,v1.co.y,v1.co.z,col[0]*mult,col[1]*mult,col[2]*mult,rough,v2.co.x,v2.co.y,v2.co.z,mat,v3.co.x,v3.co.y,v3.co.z, face.normal[0],face.normal[1],face.normal[2],v1.normal[0],v1.normal[1],v1.normal[2],v2.normal[0],v2.normal[1],v2.normal[2],v3.normal[0],v3.normal[1],v3.normal[2],us[0], uvs[0],us[1], uvs[1],us[2], uvs[2],smooth,tex,texer) )
+            file.write( '%f,%f,%f,2,%f,%f,%f,%f,0,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%s' 
+            % (v1.co.x,v1.co.y,v1.co.z,col[0]*mult,col[1]*mult,col[2]*mult,rough,v2.co.x,v2.co.y,v2.co.z,mat,v3.co.x,v3.co.y,v3.co.z, face.normal[0],face.normal[1],face.normal[2],v1.normal[0],v1.normal[1],v1.normal[2],v2.normal[0],v2.normal[1],v2.normal[2],v3.normal[0],v3.normal[1],v3.normal[2],us[0], uvs[0],us[1], uvs[1],us[2], uvs[2],smooth,tex,texer) )
             file.write('\n')
-       
        
         return {'FINISHED'}
 
@@ -191,15 +171,12 @@ def menu_func(self, context):
     self.layout.operator_context = 'INVOKE_DEFAULT'
     self.layout.operator(ExportSomeData.bl_idname, text="RTS export")
 
-
 # Register and add to the file selector
 def register():
     bpy.utils.register_class(ExportSomeData)
-bpy.types.TOPBAR_MT_file_export.append(menu_func)
+    bpy.types.TOPBAR_MT_file_export.append(menu_func)
 
 def unregister():
     bpy.utils.unregister_class(ExportSomeData)
 
 
-
-# test call
