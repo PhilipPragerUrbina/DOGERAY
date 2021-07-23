@@ -19,4 +19,4 @@ Some samples:
   
 </p>
 
-Based of of: https://github.com/RayTracing/raytracing.github.io
+Based of of: https://raytracing.github.io/
