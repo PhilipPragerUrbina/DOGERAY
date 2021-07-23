@@ -6,6 +6,8 @@ Almost all the code is in kernel.cu
 
 Requires CUDA and SDL2
 
+
+tracker here: https://github.com/users/PhilipPragerUrbina/projects/1
 ###
 Some samples:
 <p align="center">
@@ -18,3 +20,5 @@ Some samples:
    <img src="images/balls.png" width="350" title="sphere Test">
   
 </p>
+
+Based of of: https://raytracing.github.io/
