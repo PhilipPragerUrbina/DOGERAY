@@ -30,7 +30,7 @@ const int upscale = 1;
 const int maxnum = 10000;
 //epsilon value for triangle intersection
 //higher makes stuff dissapear and lower makes stuff speckle. pick your poison
-const int epsilon = 0.0001;
+
 
 
 
@@ -127,7 +127,7 @@ int iter = 0;
 //settings global variables
 float3 campos = { 0, 0, 2 };
 float3 look = { 0, 0, 0 };
-float aperturee = 0.01;
+float aperturee = 0.01f;
 float focus_diste = 3;
  int actualbvhnum =0;
  int max_depthh = 50;
@@ -293,7 +293,7 @@ __device__ float3 hit_tri(float3 rayOrigin,
 {
  
  
-        const float EPSILON = epsilon;
+        const float EPSILON = 0.0001;
   
         float3 edge1, edge2, h, s, q;
         float a, f, u, v;
@@ -394,7 +394,7 @@ __host__ __device__ bool bounding_box(int obj, float3& min, float3& max, singleo
 
  //calculate bounding box of array
  bool arraybound(float3 &min, float3 &max, int objs[], int len, singleobject* b) {
-    if (len==0) return false;
+     if (len == 0) return{ false };
 
     float3 temp_min = make3(-1);
     float3 temp_max = make3(-1);
@@ -503,7 +503,9 @@ __device__ float3 hit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) 
     //is not hit
     bool oof = true;
 
+    bool* test = new bool[10];
 
+    delete[] test;
  
     //while array is not empty
     while (mini < num) {
@@ -2289,7 +2291,7 @@ cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree,
 
    
 
-   
+  
     //set up settings values
     float settings[12] = { campos.x , campos.y,campos.z, look.x,  look.y,  look.z, aperturee ,focus_diste,fovv, max_depthh, samples_per_pixell,divisor };
 
