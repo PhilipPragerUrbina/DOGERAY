@@ -18,3 +18,5 @@ Some samples:
    <img src="images/balls.png" width="350" title="sphere Test">
   
 </p>
+
+Based of of: https://github.com/RayTracing/raytracing.github.io
