@@ -25,8 +25,9 @@ const int SCREEN_HEIGHT = 720;
 //factor to scale window up for small resoultions
 const int upscale = 1;
 
-
-
+//maximum number of traversals(Make larger to load huge models at cost of memory and performance)
+//let me know how to make resizable arrays within a cuda kernel to remove this
+const int maxnum = 10000;
 
 
 
@@ -290,7 +291,7 @@ __device__ float3 hit_tri(float3 rayOrigin,
 {
  
  
-        const float EPSILON = 0.01;
+        const float EPSILON = 0.001;
   
         float3 edge1, edge2, h, s, q;
         float a, f, u, v;
@@ -485,7 +486,7 @@ __device__ float3 hit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) 
 
     //cant dynamically allocate(too big)
     //becouse array cant be resized the fucntion koves along the array using part of it
-    int tracked[10000];
+    int tracked[maxnum];
     tracked[0] = 0;
 
     //array length
@@ -790,7 +791,7 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
             float3 N =  getnormal(g, rayo, hitpoint, b, raydir, texco);
 
             
-            bool inorout = get_face_normal(dir, N);
+            bool inorout = get_face_normal(raydir, N);
      
             N = inorout ? N : N * make3(-1);
 
@@ -905,7 +906,7 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
 
 
 
-
+//random function for depth of field
 __device__ float3 random_in_unit_disk() {
     while (true) {
         float3 p = make_float3((randy()*2)-1, (randy() * 2) - 1, 0);
@@ -913,89 +914,104 @@ __device__ float3 random_in_unit_disk() {
         return p;
     }
 }
+
+//Main kernel for every pixel
 __global__ void Kernel(int* outputr, int* outputg, int* outputb, float* settings, bvh* bvhtree, singleobject* b, cudaTextureObject_t* tex)
 {
-   
+ 
+
+
+    //get x, y and w
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int w = x * SCREEN_HEIGHT + y;
-    float aspect = float(SCREEN_WIDTH / settings[11]) / float(SCREEN_HEIGHT / settings[11]);
-    float u =( float(x) / float(SCREEN_WIDTH / settings[11]));
-    float v =float(y) / float(SCREEN_HEIGHT / settings[11]);
-    // * aspect
-    if ((x >= SCREEN_WIDTH / settings[11]) || (y >= SCREEN_HEIGHT / settings[11])) return;
+
+
+    //defualt color
     outputr[w] = 0;
     outputg[w] = 0;
     outputb[w] = 0;
-    float fov = settings[8];
-    float fovvv = fov* M_PI/180;
+
+
+    //get aspect ratio
+    float aspect = float(SCREEN_WIDTH / settings[11]) / float(SCREEN_HEIGHT / settings[11]);
+  
    
-    float h = tan(fovvv / 2);
-    float viewport_height = 2.0 * h;
+    //get fov and convert to radians
+    float fov = settings[8] * M_PI/180;
+   
+   //calculate heigh and width of viewport
+    float viewport_height = 2.0 * tan(fov / 2);
     float viewport_width = aspect * viewport_height;
  
-    /* float3 cam = make_float3(0, 0, 2);
-
-    float3 origin = cam;
-    float3 horizontal = make_float3(SCREEN_WIDTH, 0, 0);
-    float3 vertical = make_float3(0, SCREEN_HEIGHT, 0);
-    float3 lower_left_corner = origin - horizontal / make_float3(2.0f, 2.0f, 2.0f) - vertical / make_float3(2.0f, 2.0f, 2.0f) - make_float3(0.0f, 0.0f, focal_length);*/
-    
-    //float3 dir = getNormalizedVec(pixel-origin);
+    //get camera position and where to look at
     float3 lookfrom = make_float3(settings[0], settings[1], settings[2]);
     float3 lookat = make_float3(settings[3], settings[4], settings[5]);
-    float3 vup = make_float3(0, 1, 0);
- 
-    float aperture = settings[6];
+
+    //get aperture and focus distance
+    
     float focus_dist = settings[7];
 
+    //define up direction
+    float3 vup = make_float3(0, 1, 0);
+ 
+
+    //calculate look at info 
     float3 wu = getNormalizedVec(lookfrom - lookat) ;
     float3 uu = getNormalizedVec(getCrossProduct(vup, wu));
     float3 vu = getCrossProduct(wu, uu);
 
-    float3 origin = lookfrom;
+    //origin is lookfrom
+ 
+
+    //calculate viewport
     float3 horizontal = make3(focus_dist) * make3(viewport_width) * uu;
     float3 vertical = make3(focus_dist) * make3(viewport_height) * vu;
-    float3 lower_left_corner = origin - horizontal / make3(2) - vertical / make3(2) - make3(focus_dist) * wu ;
+    float3 lower_left_corner = lookfrom - horizontal / make3(2) - vertical / make3(2) - make3(focus_dist) * wu ;
 
-        
-    float lens_radius = aperture / 2;
+      //get lens raduis form apeture
+    float lens_radius = settings[6] / 2;
 
 
-    int samples_per_pixel = settings[10];
-    int max_depth = settings[9];
+    //color value
+    float3 ColorOutput = make_float3(0, 0, 0);
 
-    float3 N = make_float3(0, 0, 0);
-    for (int s = 0; s < samples_per_pixel; ++s) {
-        int tId = threadIdx.x + (blockIdx.x * blockDim.x);
+    //for each sample per pixel
+    for (int s = 0; s < settings[10]; ++s) {
+        //set up cuda random
         curandState state;
-        curand_init((unsigned long long)clock() + tId, 0, 0, &state);
+        curand_init((unsigned long long)clock() + x, 0, 0, &state);
 
-        double rand1 = curand_uniform_double(&state);
-        double rand2 = curand_uniform_double(&state);
-        float nu = ((float(x) + rand1) / float(SCREEN_WIDTH / settings[11]));
-        float nv = (float(y) + rand2) / float(SCREEN_HEIGHT / settings[11]);
+        float nu = ((float(x) + curand_uniform_double(&state)) / float(SCREEN_WIDTH / settings[11]));
+        float nv = (float(y) + curand_uniform_double(&state)) / float(SCREEN_HEIGHT / settings[11]);
+
+        //get ray direction
         float3 rd = make3(lens_radius) * random_in_unit_disk();
         float3 offset = uu * make3(rd.x) + vu * make3(rd.y);
-        float3 dir = lower_left_corner + make3(nu) * horizontal + make3(nv) * vertical - origin-offset;
-        N = N + raycolor(origin+offset, dir, max_depth,  bvhtree, b,tex);
+        float3 dir = lower_left_corner + make3(nu) * horizontal + make3(nv) * vertical - lookfrom -offset;
+
+        //calculate ray
+        ColorOutput = ColorOutput + raycolor(lookfrom +offset, dir, settings[9],  bvhtree, b,tex);
 
     }
-    float scale = 1.0 / samples_per_pixel;
-        outputr[w] = N.x * 255*scale;
-        outputg[w] = N.y * 255 * scale;
-        outputb[w] = N.z * 255 * scale;
+
+    //divide by samples per pixel
+    float scale = 1.0 / settings[10];
+    //output
+        outputr[w] = ColorOutput.x * 255*scale;
+        outputg[w] = ColorOutput.y * 255 * scale;
+        outputb[w] = ColorOutput.z * 255 * scale;
 
 
     
-    // Add vectors in parallel.
+    
 
 
 
 }
 
 
-
+//random funcitons for cpu
 
  double random_double() {
     // Returns a random real in [0,1).
@@ -1003,10 +1019,6 @@ __global__ void Kernel(int* outputr, int* outputg, int* outputb, float* settings
     return rand() / (RAND_MAX + 1.0);
 }
 
- double random_double(double min, double max) {
-    // Returns a random real in [min,max).
-    return min + (max - min) * random_double();
-}
 
 
 
@@ -1015,6 +1027,7 @@ __global__ void Kernel(int* outputr, int* outputg, int* outputb, float* settings
 
 
 
+ //get number of objects/tris
  int getnum(std::string File) {
 
 
@@ -1042,9 +1055,9 @@ __global__ void Kernel(int* outputr, int* outputg, int* outputb, float* settings
      if (MyReadFile.is_open()) {
 
          while (getline(MyReadFile, myText)) {
-             // Output the text from the file
+        
             
-            //create string stream from the string
+           
              if (myText[0] == "/"[0])
                  continue;
              if (myText[0] == "*"[0]) {
@@ -1053,7 +1066,7 @@ __global__ void Kernel(int* outputr, int* outputg, int* outputb, float* settings
 
 
              }
-           
+           //increment number
              line++;
          }
        
@@ -1065,15 +1078,15 @@ __global__ void Kernel(int* outputr, int* outputg, int* outputb, float* settings
      else {
 
          SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
-             "Missing file",
-             "scene.txt is missing.",
+             "File Error",
+             "OOF",
              NULL);
          return 0;
      }
 
  }
 
-
+ //get texture id from name
  int gettexnum(std::string query, std::string* texpaths) {
      for (int i = 0; i < texnum; i++)
      {
@@ -1086,6 +1099,8 @@ __global__ void Kernel(int* outputr, int* outputg, int* outputb, float* settings
      }
      return -1;
  }
+
+ //read rts fiole
 void read(std::string File, singleobject* b, std::string* texpaths) {
 
 
@@ -1113,21 +1128,24 @@ void read(std::string File, singleobject* b, std::string* texpaths) {
     if (MyReadFile.is_open()) {
        
         while (getline(MyReadFile, myText)) {
-            // Output the text from the file
+            //what colum
             int colum = 0;
             stringstream s_stream(myText); //create string stream from the string
-            if(myText[0] == "/"[0])
-            continue;
+
+            //ignore comments
+            if (myText[0] == "/"[0]) {
+
+                continue;
+            }
+           //read settings
             if (myText[0] == "*"[0]) {
                 while (s_stream.good()) {
                     string substr;
-                    getline(s_stream, substr, ','); //get first string delimited by comma
+                    getline(s_stream, substr, ','); 
 
-                      //  *,camx,camy,camz,apeture, lookx,looky,lookz,focus dist, fov, max depth, samples per frame
-                    if (colum == 0) {
-                       
-                    }
-                    else if (colum == 1) {
+                   
+                   //set info
+                     if (colum == 1) {
 
                        campos.x = stof(substr);
                     }
@@ -1161,7 +1179,7 @@ void read(std::string File, singleobject* b, std::string* texpaths) {
                     }
                     else if (colum == 9) {
 
-                        fovv = stof(substr);
+                        fovv = stoi(substr);
                     }
                     else if (colum == 10) {
 
@@ -1188,7 +1206,7 @@ void read(std::string File, singleobject* b, std::string* texpaths) {
                 string substr;
                 getline(s_stream, substr, ','); //get first string delimited by comma
            
-                  
+                  //random value 
                 if (substr == "r") {
                  
                     double r =random_double();
@@ -1196,7 +1214,7 @@ void read(std::string File, singleobject* b, std::string* texpaths) {
                   
 
                 }
-                  // x,y,z,type, r,g,b,extra, lam, dimx,dimy,dimz,mat
+                 //appl info
                 if (colum == 0) {
                    b[line].pos.x = stof(substr);
 
@@ -1388,6 +1406,8 @@ void read(std::string File, singleobject* b, std::string* texpaths) {
             }
             line++;
         }
+
+        //set object number
         nanum[0] = line+1;
         // Close the file
         MyReadFile.close();
@@ -1395,18 +1415,15 @@ void read(std::string File, singleobject* b, std::string* texpaths) {
     else {
 
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
-            "Missing file",
-            "scene.txt is missing.",
+            "File Error",
+            "ooof",
             NULL);
     }
 
 }
- int random_int(int min, int max) {
-    // Returns a random integer in [min,max].
-     srand(GetTickCount());
-    return static_cast<int>(random_double(min, max + 1));
-}
 
+
+//Sorts an array and puts other array in same order
 void pairsort(float* a, int* b, int n)
 {
     std::pair<float, int>* pairt = new std::pair<float, int>[n];
@@ -1431,6 +1448,8 @@ void pairsort(float* a, int* b, int n)
 
     delete[] pairt;
 }
+
+//calulates standard devation
 float3 calculateSD(float3 data[], int len)
 {
     float3 out;
@@ -1495,7 +1514,12 @@ float3 calculateSD(float3 data[], int len)
     out.z = sqrt(standardDeviation / len);
     return out;
 }
+
+//sorts objects based on positon on axis
 void sorto(float* output, float3 input[], int size, int* yett) {
+
+
+    //choose axis with most deviation
     float3 dev = calculateSD(input, size);
 
     int axis = 0;
@@ -1516,10 +1540,10 @@ void sorto(float* output, float3 input[], int size, int* yett) {
 
 
 
-   //int axis =  random_int(0, 2);
-
-
   
+
+
+  //copy data
 
     for (int o = 0; o < size; ++o) {
 
@@ -1537,18 +1561,15 @@ void sorto(float* output, float3 input[], int size, int* yett) {
        
 
     }
-   
+   //sort data
     pairsort(output, yett, size);
 
-    /*
-    float* first(&output[0]);
-    float* last(first + size);
-    std::sort(first, last);
-    */
 }
-
+//split objects in array into two groups for bvh
 void split(int input[],int* a, int* b, int num, singleobject* bb) {
 
+
+    //copy data
     float3 *many = new float3[num];
     int* aoutput = new int[num];
     for (int o = 0; o < num; ++o) {
@@ -1559,13 +1580,13 @@ void split(int input[],int* a, int* b, int num, singleobject* bb) {
 
    
 
-
+    //sorts data
     float* output = new float[num];
     sorto(output, many, num, aoutput);
     
    
 
-
+    //put data into seperate arrays
     int part1 = num / 2;
  
     for (int o = 0; o < part1; ++o) {
@@ -1579,17 +1600,17 @@ void split(int input[],int* a, int* b, int num, singleobject* bb) {
 
     }
 
-
+    //clean up
     delete[] output;
     delete[] aoutput;
     delete[] many;
 
 }
 
-
+//bvh building algorittm
 void build_bvh(bvh* nbvhtree, singleobject* bb) {
 
-    //build bounding volume heirarchy
+   //array of additional bvh node data only for cpu
     bvhunder* under = new bvhunder[bvhnum];
 
     //clear bvh
@@ -1599,12 +1620,14 @@ void build_bvh(bvh* nbvhtree, singleobject* bb) {
     std::fill_n(nbvhtree, bvhnum, defualt);
     actualbvhnum = 1;
 
-    int iteration = 0;
+    
 
 
     //set up first node (top down)
-    //asighn all avluies exept children(we will set when we proccess childeren)
+    //set all avluies execpt children(we will set when we proccess the children)
 
+
+    //add all remaining objects to first node
     for (int o = 0; o < nanum[0]; ++o) {
 
 
@@ -1612,6 +1635,8 @@ void build_bvh(bvh* nbvhtree, singleobject* bb) {
         under[0].under[o] = o;
 
     }
+
+    //set settings
     nbvhtree[0].active = true;
     nbvhtree[0].id = 0;
     nbvhtree[0].count = nanum[0]-1;
@@ -1623,39 +1648,46 @@ void build_bvh(bvh* nbvhtree, singleobject* bb) {
     nbvhtree[0].min = firstmin;
     nbvhtree[0].max = firstmax;
    
-  
+  //keep track of how many are sorted
     int sorted = nanum[0];
-    //for each active node with id==iteration
-   //calculate split size
-  //split into two arrays
-   //create two bvh nodes 
-                 //if bvh node has only one object in array mark as end    minus 1 from sorted 
-                //calculate bounding boxes
-                 //assign enw bvh nodes as the children of the main bvh node
-                   //add to actual bvh num
 
-    for (iteration; iteration < 100000; ++iteration) {
+
+
+
+    //for each active node with id==iteration
+   //calculate split size 
+  //split objects under node into two arrays
+   //create two bvh nodes each with the split objects under them
+                 //if bvh node has only one object under it mark as end    minus 1 from sorted 
+                //calculate bounding boxes
+                 //assign new bvh nodes as the children of the current bvh node
+                   //add to actual bvh number
+
+    for (int iteration = 0; iteration < 100000; ++iteration) {
 
         if (sorted <= 0) {
 
             break;
         }
+
+        //copy amount
         int boi = actualbvhnum;
+        //for each node
         for (int node = 0; node < boi; ++node) {
-
+            //if it should be proccesed
             if (nbvhtree[node].active == true && nbvhtree[node].id == iteration && nbvhtree[node].end == false) {
-
+                //calulate size
                 int size = nbvhtree[node].count;
                 int partition1 = size / 2;
                 int partition2 = size - partition1;
-             //   std::cout << size << "\n";
-
+          
+                //split objects
                 int *a = new int[partition1];
                 int *b = new int[partition2];
 
                 split(under[node].under, a,  b, size, bb);
                 
-                //create node 1    yes
+                //create node 1    
                 bvh node1;
                 actualbvhnum++;
                
@@ -1676,10 +1708,10 @@ void build_bvh(bvh* nbvhtree, singleobject* bb) {
                     sorted--;
                     node1.under = under[actualbvhnum - 1].under[0];
                     node1.end = true;
-                 //   std::cout << "end reached: " << node1.under[0] << "\n";
+            
                 }
 
-
+                //calc bounding boxes
                 float3 amin;
                 float3 amax;
                 arraybound(amin, amax, a, partition1, bb);
@@ -1713,10 +1745,10 @@ void build_bvh(bvh* nbvhtree, singleobject* bb) {
                     sorted--;
                     node2.under = under[actualbvhnum - 1].under[0];
                     node2.end = true;
-                   // std::cout << "end reached: " << node2.under[0] << "\n";
+                 
                 }
              
-
+                //calc boudning boxes
                 float3 bmin;
                 float3 bmax;
                 arraybound(bmin, bmax, b, partition2, bb);
@@ -1727,7 +1759,7 @@ void build_bvh(bvh* nbvhtree, singleobject* bb) {
          
 
                
-                
+                //clean up
 
                 delete[] a;
                 delete[] b;
@@ -1879,7 +1911,7 @@ int main(int argc, char* args[])
 
     //get number of objects
     objnum = getnum(filename);
-    std::cout << objnum << " objects/faces total" << std::endl;
+    std::cout << objnum << " tris" << std::endl;
 
 
 
@@ -1934,7 +1966,7 @@ int main(int argc, char* args[])
     SDL_Window* window = NULL;
     SDL_Renderer* renderer;
     //The surface contained by the window
-    SDL_Surface* screenSurface = NULL;
+   
     std::cout << "Opening Window:" << std::endl;
     std::cout << std::endl;
     std::cout << std::endl;
