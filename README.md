@@ -11,6 +11,7 @@ tracker here: https://github.com/users/PhilipPragerUrbina/projects/1
 ###
 Some samples:
 <p align="center">
+   <img src="images/doge.JPG" width="350" title="Dog Test">
   <img src="images/cow.PNG" width="350" title="Cow Test">
    <img src="images/car.png" width="350" title="car Test">
    <img src="images/torus.png" width="350" title="torus Test">
