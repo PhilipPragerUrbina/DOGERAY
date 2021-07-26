@@ -1216,7 +1216,10 @@ void read(std::string File, singleobject* b, std::string* texpaths) {
                     }
                     else if (colum == 13) {
 
-                         backtex = stoi(substr);
+                         if (substr != "no") {
+                           backtex = gettexnum(substr, texpaths);
+
+                         }
                      }
                   
 
