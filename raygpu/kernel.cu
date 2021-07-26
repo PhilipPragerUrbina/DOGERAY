@@ -123,7 +123,7 @@ int objnum = 10000;
 int bvhnum = objnum * 2;
 int texnum = 1;
 int iter = 0;
-
+int backtex = -1;
 //settings global variables
 float3 campos = { 0, 0, 2 };
 float3 look = { 0, 0, 0 };
@@ -763,7 +763,7 @@ __device__ float3 checker(float3 uv, float3 p, float3 col1, float3 col2) {
 }
 
 //main ray fucntion
-__device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree, singleobject* b, cudaTextureObject_t* tex) {
+__device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree, singleobject* b, cudaTextureObject_t* tex, int backtex) {
    
     float3 raydir = dir;
     float3 rayo = origin;
@@ -892,7 +892,24 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
 
         }
         else {
-            
+
+        if (backtex > -1) {
+
+
+            float3 unit_direction = getNormalizedVec(raydir);
+         
+            float m = 2. * sqrt(pow(unit_direction.x, 2.) + pow(unit_direction.y, 2.) + pow(unit_direction.z + 1., 2.0));
+            float3 t = unit_direction / make3(m) + make3(.5);
+            t.y = -t.y;
+
+            uchar4 color1 = tex2D<uchar4>(tex[backtex], t.x, -t.y + 1);
+            float3 color2 = make_float3(float(color1.x) / 255, float(color1.y) / 255, float(color1.z) / 255);
+
+
+            return  cur_attenuation * color2 * make_float3(backgroundintensity[0], backgroundintensity[0], backgroundintensity[0]);
+
+
+        }
               //calculate envoriment
             float3 unit_direction = getNormalizedVec(raydir);
             float t = 0.5 * (unit_direction.y + 1.0);
@@ -995,7 +1012,7 @@ __global__ void Kernel(int* outputr, int* outputg, int* outputb, float* settings
         float3 dir = lower_left_corner + make3(nu) * horizontal + make3(nv) * vertical - lookfrom -offset;
 
         //calculate ray
-        ColorOutput = ColorOutput + raycolor(lookfrom +offset, dir, settings[9],  bvhtree, b,tex);
+        ColorOutput = ColorOutput + raycolor(lookfrom +offset, dir, settings[9],  bvhtree, b,tex, settings[12]);
 
     }
 
@@ -1197,6 +1214,10 @@ void read(std::string File, singleobject* b, std::string* texpaths) {
 
                         nbackgroundintensity[0] = stof(substr);
                     }
+                    else if (colum == 13) {
+
+                         backtex = stoi(substr);
+                     }
                   
 
 
@@ -2293,7 +2314,7 @@ cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree,
 
   
     //set up settings values
-    float settings[12] = { campos.x , campos.y,campos.z, look.x,  look.y,  look.z, aperturee ,focus_diste,fovv, max_depthh, samples_per_pixell,divisor };
+    float settings[13] = { campos.x , campos.y,campos.z, look.x,  look.y,  look.z, aperturee ,focus_diste,fovv, max_depthh, samples_per_pixell,divisor, backtex };
 
     //calculate output size
     int size = SCREEN_WIDTH * SCREEN_HEIGHT;
@@ -2321,7 +2342,7 @@ cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree,
     cudaStatus = cudaMalloc((void**)&dev_outputg, size * sizeof(int));
     cudaStatus = cudaMalloc((void**)&dev_outputb, size * sizeof(int));
 
-    cudaStatus = cudaMalloc((void**)&dev_settings, 12 * sizeof(float));
+    cudaStatus = cudaMalloc((void**)&dev_settings, 13 * sizeof(float));
 
     cudaStatus = cudaMalloc((void**)&dev_bvhtree, bvhnum * sizeof(bvh));
     cudaStatus = cudaMalloc((void**)&dev_allobjects, objnum * sizeof(singleobject));
@@ -2332,8 +2353,8 @@ cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree,
     cudaGetDevice(&device);
 
     // Copy input vectors from host memory to GPU buffers(and prefetch?)
-    cudaStatus = cudaMemcpy(dev_settings, settings, 12 * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemPrefetchAsync(dev_settings, 12 * sizeof(float), device, NULL);
+    cudaStatus = cudaMemcpy(dev_settings, settings, 13 * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemPrefetchAsync(dev_settings, 13 * sizeof(float), device, NULL);
 
     cudaStatus = cudaMemcpy(dev_bvhtree, nbvhtree, bvhnum * sizeof(bvh), cudaMemcpyHostToDevice);
     cudaMemPrefetchAsync(dev_bvhtree, bvhnum * sizeof(bvh), device, NULL);
