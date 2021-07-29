@@ -25,11 +25,7 @@ const int SCREEN_HEIGHT = 720;
 //factor to scale window up for small resoultions
 const int upscale = 1;
 
-//maximum number of traversals(Make larger to load huge models at cost of memory and performance)
-//let me know how to make resizable arrays within a cuda kernel to remove this
-const int maxnum = 10000;
-//epsilon value for triangle intersection
-//higher makes stuff dissapear and lower makes stuff speckle. pick your poison
+
 
 
 
@@ -488,7 +484,11 @@ __device__ float3 hit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) 
 
     //cant dynamically allocate(too big)
     //becouse array cant be resized the fucntion koves along the array using part of it
-    int tracked[maxnum];
+
+//maximum number of traversals(Make larger to load huge models at cost of memory and performance)
+//let me know how to make resizable arrays within a cuda kernel to remove this
+
+    int tracked[10000];
     tracked[0] = 0;
 
     //array length
