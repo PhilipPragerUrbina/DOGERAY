@@ -42,7 +42,7 @@ def writeppm(path):
     
     print("image loaded")
 
-    ppm_header = f'P6 {DISPLAY_WIDTH} {DISPLAY_HEIGHT} {255}\n'
+    ppm_header = f'P6\n{DISPLAY_WIDTH} {DISPLAY_HEIGHT}\n{255}\n'
 
     image = array.array('B', [0, 0, 255] * DISPLAY_WIDTH * DISPLAY_HEIGHT)
     print("output loaded")

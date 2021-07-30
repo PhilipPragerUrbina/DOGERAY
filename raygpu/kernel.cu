@@ -476,12 +476,6 @@ __device__ float3 singlehit(float3 origin, float3 dir, int x, singleobject* b) {
 //overall hit function
 __device__ float3 hit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) {
 
-    //preview bvh if selected
-    float bvhdist = bvhhit(origin, dir, bvhtree).x;
-    if (bvhdist > -0.1) {
-        return  make_float3(bvhdist, 2, 0);;
-    }
-
     //cant dynamically allocate(too big)
     //becouse array cant be resized the fucntion koves along the array using part of it
 
