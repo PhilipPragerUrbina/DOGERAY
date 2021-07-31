@@ -9,8 +9,9 @@ Requires CUDA and SDL2
 
 tracker here: https://github.com/users/PhilipPragerUrbina/projects/1
 ###
-Some samples:
+Gallery:
 <p align="center">
+    <img src="images/bolterm.JPG" width="350" title="gun Test">
    <img src="images/doge.JPG" width="350" title="Dog Test">
   <img src="images/cow.PNG" width="350" title="Cow Test">
    <img src="images/car.png" width="350" title="car Test">
@@ -19,6 +20,8 @@ Some samples:
     <img src="images/sponge.png" width="350" title="menger sponge Test">
      <img src="images/balls2.png" width="350" title="sphere Test">
    <img src="images/balls.png" width="350" title="sphere Test">
+    <img src="images/bolter.JPG" width="350" title="gun Test">
+    <img src="images/gun.JPG" width="350" title="gun Test">
   
 </p>
 
