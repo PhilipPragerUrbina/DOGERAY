@@ -208,6 +208,7 @@ class ExportSomeData(Operator, ExportHelper):
             em = principled.inputs['Emission'].default_value;
             rough = principled.inputs['Roughness'].default_value;
             iqr =  principled.inputs['IOR'].default_value;
+            spec =  principled.inputs['Specular'].default_value;
             mat = 0;
             
             if(met > 0.5):
@@ -215,6 +216,9 @@ class ExportSomeData(Operator, ExportHelper):
             if(trans > 0.5):
                 mat = 4;
                 rough = iqr;
+            if(spec > 0.7):
+                mat = 5;
+               
             mult = 1;
             if(em[0] > 0.5 or em[1] > 0.5 or em[2] > 0.5):
                 mat = 1;

@@ -610,7 +610,8 @@ __device__ float3 hit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) 
 __device__ float3 random_in_unit_sphere() {
     while (true) {
         curandState state;
-        int tId = threadIdx.x + (blockIdx.x * blockDim.x);
+    
+        int tId = (threadIdx.x + (blockIdx.x * blockDim.x)) + (threadIdx.y + blockIdx.y * blockDim.y) * blockDim.x * gridDim.x;
 
         curand_init((unsigned long long)clock() + tId, 0, 0, &state);
 
@@ -620,10 +621,13 @@ __device__ float3 random_in_unit_sphere() {
         return p;
     }
 }
+
+//random between 0-1
 __device__ float randy() {
-    while (true) {
+ 
         curandState state;
-        int tId = threadIdx.x + (blockIdx.x * blockDim.x);
+
+        int tId = (threadIdx.x + (blockIdx.x * blockDim.x)) + (threadIdx.y + blockIdx.y * blockDim.y) * blockDim.x * gridDim.x;
 
         curand_init((unsigned long long)clock() + tId, 0, 0, &state);
 
@@ -631,7 +635,7 @@ __device__ float randy() {
       
        
         return rand1;
-    }
+    
 }
 
 //functions for mats
@@ -847,6 +851,34 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
                 raydir = reflected + make3(b[g].addional.y) * random_in_unit_sphere();
 
             }
+            else if (b[g].mat == 5) {
+                //glossy mat
+                float rand = randy();
+
+                if (rand > 0.8) {
+                    float3 reflected = reflect(getNormalizedVec(raydir), N);
+                    cur_attenuation = cur_attenuation * ocolor;
+                    rayo = hitpoint;
+
+                    raydir = reflected + make3(b[g].addional.y) * random_in_unit_sphere();
+
+                }else{
+                    float3 target = hitpoint + N;
+                   
+                        target = target + random_in_unit_sphere();
+                  
+
+                    cur_attenuation = cur_attenuation * ocolor;
+
+                    rayo = hitpoint;
+                    raydir = getNormalizedVec(target - hitpoint);
+
+                }
+               
+
+
+             
+            }
           
             else if (b[g].mat == 4) {
                 //glass mat
@@ -995,7 +1027,10 @@ __global__ void Kernel(int* outputr, int* outputg, int* outputb, float* settings
     for (int s = 0; s < settings[10]; ++s) {
         //set up cuda random
         curandState state;
-        curand_init((unsigned long long)clock() + x, 0, 0, &state);
+
+      
+
+        curand_init((unsigned long long)clock() + (x + y * blockDim.x * gridDim.x), 0, 0, &state);
 
         float nu = ((float(x) + curand_uniform_double(&state)) / float(SCREEN_WIDTH / settings[11]));
         float nv = (float(y) + curand_uniform_double(&state)) / float(SCREEN_HEIGHT / settings[11]);
