@@ -2048,7 +2048,7 @@ int main(int argc, char* args[])
                     cudaError_t cudaStatus = CudaStarter(outr, outg, outb, nbvhtree, allobjects, textures, 4);
                     td = 4;
                     pnum = 1;
-
+                   
                     iter++;
                 }
 
@@ -2059,8 +2059,8 @@ int main(int argc, char* args[])
                     cudaError_t cudaStatus = CudaStarter(outr, outg, outb, nbvhtree, allobjects, textures, 2);
                     td = 2;
                     pnum = 2;
-                    
                     iter++;
+                   
                 }
                 //now we can start the full res render
                 else if (iter == 3) {
@@ -2166,90 +2166,100 @@ int main(int argc, char* args[])
                 std::cout << '\r' << "d: " << debugnum[0] << " " << "Time = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]  " << 1e+6 / std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << " FPS       " << (iter - pnum) * samples_per_pixell << " samples";
 
              
-
-               
+         
+                bool toexport = false;
                 //get input
                 SDL_PollEvent(&event);
                 //update window
 				SDL_RenderPresent(renderer);
 
-
+               
               
 
                 //proccess input
                
-				switch (event.type)
-				{
-				case SDL_QUIT:
+                switch (event.type)
+                {
+                case SDL_QUIT:
                     //handle close
-					quit = true;
-					SDL_DestroyRenderer(renderer);
-					break;
+                    quit = true;
+                    SDL_DestroyRenderer(renderer);
+                    break;
 
 
-				case SDL_KEYDOWN:
+                case SDL_KEYDOWN:
 
-					switch (event.key.keysym.sym) {
-					case SDLK_RIGHT:
+                    switch (event.key.keysym.sym) {
+                    case SDLK_RIGHT:
 
                         //move camera right
-						campos.x += 1;
+                        campos.x += 1;
 
                         //sameple iteration is reset with movement
                        //for a motion blur effect just dont reset iter with motion 
-						iter = 0;
-						break;
-					case SDLK_LEFT:
-						campos.x -= 1;
+                        iter = 0;
+                        break;
+                    case SDLK_LEFT:
+                        campos.x -= 1;
                         //move camera left
-					
 
-						iter = 0;
-						break;
-					case SDLK_UP:
+
+                        iter = 0;
+                        break;
+                    case SDLK_UP:
                         //move camera forward
-						campos.z -= 1;
-						iter = 0;
-						break;
-					case SDLK_DOWN:
+                        campos.z -= 1;
+                        iter = 0;
+                        break;
+                    case SDLK_DOWN:
                         //back
-						campos.z += 1;
-						iter = 0;
-						break;
-					case SDLK_w:
+                        campos.z += 1;
+                        iter = 0;
+                        break;
+                    case SDLK_w:
                         //up
-						campos.y -= 0.5;
-						iter = 0;
-						break;
-					case SDLK_s:
+                        campos.y -= 0.5;
+                        iter = 0;
+                        break;
+                    case SDLK_s:
                         //down
-						campos.y += 0.5;
-						iter = 0;
-						break;
-					case SDLK_a:
-                        //a and d cyle through bvh nodes and displays them with the first matirial in the scene
-						debugnum[0]--;
-						iter = 0;
-						break;
-					case SDLK_d:
-						debugnum[0]++;
-						iter = 0;
-						break;
-					case SDLK_ESCAPE:
+                        campos.y += 0.5;
+                        iter = 0;
+                        break;
+                    case SDLK_SPACE:
+
+                        toexport = true;
+                        break;
+                    case SDLK_ESCAPE:
                         //handle exit throug escape
-						quit = true;
-						SDL_DestroyRenderer(renderer);
-						break;
+                        quit = true;
+                        SDL_DestroyRenderer(renderer);
+                        break;
 
-					default:
-						break;
-					}
-				}
+                    default:
+                        break;
+                    }
+                }
+
+                if (toexport == true) {
+
+                    toexport = false;
+                    //export image
+                    SDL_Surface* sshot = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
+                    SDL_RenderReadPixels(renderer, NULL, SDL_PIXELFORMAT_ARGB8888, sshot->pixels, sshot->pitch);
+                    char* patherchar;
+                    std::string pather = filename + ".bmp";
 
 
+                    patherchar = &pather[0];
+
+                    SDL_SaveBMP(sshot, patherchar);
+                    SDL_FreeSurface(sshot);
+                    std::cout << "\n" <<"exported image:" << filename << ".bmp" << "\n";
+                }
 
 
-
+               
 
 
 

@@ -15,14 +15,25 @@ from bpy.types import Operator
 
 import array
 import imbuf
+from pathlib import Path
+def file_exists(filepath):
+   if os.path.exists("filepath"):
+       return "true"
+   else:
+       return "false"
 
 def writeppm(path):
-    imb = imbuf.load(path)
-    print("imbuf loaded")
+   
     
     
    
     newpath = os.path.splitext(path)[0]+'.ppm'
+    pathen = Path(newpath)
+    if pathen.exists():
+        print("no")
+        return
+    imb = imbuf.load(path)
+    print("imbuf loaded")
     imbuf.write(imb, newpath)
     print("template loaded")
     imb.free()
@@ -241,6 +252,7 @@ class ExportSomeData(Operator, ExportHelper):
             % (v1.co.x,-v1.co.z,v1.co.y,col[0]*mult,col[1]*mult,col[2]*mult,rough,v2.co.x,-v2.co.z,v2.co.y,mat,v3.co.x,-v3.co.z,v3.co.y, 
             face.normal[0],-face.normal[2],face.normal[1],v1.normal[0],-v1.normal[2],v1.normal[1],v2.normal[0],-v2.normal[2],v2.normal[1],v3.normal[0],-v3.normal[2],v3.normal[1],us[0], uvs[0],us[1], uvs[1],us[2], uvs[2],smooth,tex,texer) )
             file.write('\n')
+        file.close()
         print("proccesing")
         print( paths)
         print("yes")
@@ -248,6 +260,8 @@ class ExportSomeData(Operator, ExportHelper):
             print(pathings)
             writeppm(pathings)
             print("done")
+        
+      
         return {'FINISHED'}
 
     def invoke(self, context, event):
