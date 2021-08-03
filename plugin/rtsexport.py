@@ -10,7 +10,7 @@ import bpy
 import os
 
 from bpy_extras.io_utils import ExportHelper
-from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty,FloatProperty
+from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty,FloatProperty,FloatVectorProperty
 from bpy.types import Operator
 
 import array
@@ -119,12 +119,33 @@ class ExportSomeData(Operator, ExportHelper):
         description="How intense background light should be 1 is normal",
         default=1
         )
+    fdist: FloatProperty(
+        name="Focus Distance",
+        description="Distance to focus to",
+        default=3
+        )
+        
+    apetur: FloatProperty(
+        name="Apeture",
+        description="DOF apeture",
+        default=0.01
+        )
     fover: IntProperty(
         name="FOV",
         description="Field of View",
         default=45
         )
-        
+    positioner: FloatVectorProperty(
+        name = "Look At",
+        description="where camera should face",
+        default=(0.0, 0.0, 0.0), 
+        min= 0.0,
+        max = 100,
+        subtype = 'XYZ'
+        # 'COLOR', 'TRANSLATION', 'DIRECTION', 'VELOCITY', 
+        # 'ACCELERATION', 'MATRIX', 'EULER', 'QUATERNION', 
+        # 'AXISANGLE', 'XYZ', 'COLOR_GAMMA', 'LAYER'
+        )
     
  
 #    use_setting: BoolProperty(
@@ -168,7 +189,7 @@ class ExportSomeData(Operator, ExportHelper):
         
         file.write('/exported from blender')
         file.write('\n')
-        file.write( '*,%f,%f,%f,0.01,0,0,0,3,%f,%f,%f,%f,%s' % (cam.location[0], -cam.location[2], cam.location[1],self.fover, self.maxbounces,self.samples,self.backgroundi, backtex) )
+        file.write( '*,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%s' % (cam.location[0], -cam.location[2], cam.location[1],self.apetur,self.positioner[0],-self.positioner[2],self.positioner[1],self.fdist,self.fover, self.maxbounces,self.samples,self.backgroundi, backtex) )
         file.write('\n')
         for face in mesh.polygons:
             

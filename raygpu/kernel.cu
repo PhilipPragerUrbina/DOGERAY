@@ -497,10 +497,7 @@ __device__ float3 hit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) 
     //is not hit
     bool oof = true;
 
-    bool* test = new bool[10];
-
-    delete[] test;
- 
+   
     //while array is not empty
     while (mini < num) {
     
@@ -511,10 +508,6 @@ __device__ float3 hit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) 
 
         //for each node in length
         for (int node = mini; node < numm; node++) {
-
-
-
-
 
 
 
