@@ -1706,13 +1706,13 @@ void build_bvh(bvh* nbvhtree, singleobject* bb) {
                  //assign new bvh nodes as the children of the current bvh node
                    //add to actual bvh number
 
-    for (int iteration = 0; iteration < 100000; ++iteration) {
+    for (int iteration = 0; iteration < 1000000; ++iteration) {
 
-        if (sorted <= 0) {
+        if (sorted <= 1) {
 
             break;
         }
-
+       // std::cout << iteration << "sorted \n";
         //copy amount
         int boi = actualbvhnum;
         //for each node
@@ -1731,26 +1731,26 @@ void build_bvh(bvh* nbvhtree, singleobject* bb) {
                 split(under[node].under, a,  b, size, bb);
                 
                 //create node 1    
-                bvh node1;
-                actualbvhnum++;
+            
+               
                
 
 
                
-                node1.active = true;
-                node1.id = iteration+1;
-                node1.end = false;
+                nbvhtree[actualbvhnum ].active = true;
+                nbvhtree[actualbvhnum ].id = iteration+1;
+                nbvhtree[actualbvhnum ].end = false;
                 for (int e = 0; e < partition1; ++e) {
-                   under[actualbvhnum - 1].under[e] = a[e];
+                   under[actualbvhnum ].under[e] = a[e];
                 }
 
 
-                node1.count = partition1;
+                nbvhtree[actualbvhnum ].count = partition1;
 
-                if (node1.count == 1) {
+                if (nbvhtree[actualbvhnum ].count == 1) {
                     sorted--;
-                    node1.under = under[actualbvhnum - 1].under[0];
-                    node1.end = true;
+                    nbvhtree[actualbvhnum ].under = under[actualbvhnum ].under[0];
+                    nbvhtree[actualbvhnum ].end = true;
             
                 }
 
@@ -1758,36 +1758,34 @@ void build_bvh(bvh* nbvhtree, singleobject* bb) {
                 float3 amin;
                 float3 amax;
                 arraybound(amin, amax, a, partition1, bb);
-                node1.min = amin;
-                node1.max = amax;
-                nbvhtree[node].children[0] = actualbvhnum-1;
-                nbvhtree[actualbvhnum-1] = node1;
-
+                nbvhtree[actualbvhnum ].min = amin;
+                nbvhtree[actualbvhnum ].max = amax;
+                nbvhtree[node].children[0] = actualbvhnum;
+                actualbvhnum++;
 
 
             
 
                 //create node 2
-                bvh node2;
-                actualbvhnum++;
+                
 
 
 
 
-                node2.active = true;
-                node2.id = iteration + 1;
+                nbvhtree[actualbvhnum].active = true;
+                nbvhtree[actualbvhnum].id = iteration + 1;
 
                 for (int e = 0; e < partition2; ++e) {
-                    under[actualbvhnum - 1].under[e] = b[e];
+                    under[actualbvhnum ].under[e] = b[e];
                 }
 
-                node2.end = false;
-                node2.count = partition2;
+                nbvhtree[actualbvhnum].end = false;
+                nbvhtree[actualbvhnum].count = partition2;
 
-                if (node2.count == 1) {
+                if (nbvhtree[actualbvhnum].count == 1) {
                     sorted--;
-                    node2.under = under[actualbvhnum - 1].under[0];
-                    node2.end = true;
+                    nbvhtree[actualbvhnum].under = under[actualbvhnum ].under[0];
+                    nbvhtree[actualbvhnum].end = true;
                  
                 }
              
@@ -1795,11 +1793,11 @@ void build_bvh(bvh* nbvhtree, singleobject* bb) {
                 float3 bmin;
                 float3 bmax;
                 arraybound(bmin, bmax, b, partition2, bb);
-                node2.min = bmin;
-                node2.max = bmax;
-                nbvhtree[node].children[1] = actualbvhnum-1;
-                nbvhtree[actualbvhnum-1] = node2;
-         
+                nbvhtree[actualbvhnum].min = bmin;
+                nbvhtree[actualbvhnum].max = bmax;
+                nbvhtree[node].children[1] = actualbvhnum;
+               
+                actualbvhnum++;
 
                
                 //clean up
