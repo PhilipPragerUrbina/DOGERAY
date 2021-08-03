@@ -600,31 +600,24 @@ __device__ float3 hit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) 
 
 
 //random fucntions
-__device__ float3 random_in_unit_sphere() {
+__device__ float3 random_in_unit_sphere(curandState* state) {
     while (true) {
-        curandState state;
-    
-        int tId = (threadIdx.x + (blockIdx.x * blockDim.x)) + (threadIdx.y + blockIdx.y * blockDim.y) * blockDim.x * gridDim.x;
-
-        curand_init((unsigned long long)clock() + tId, 0, 0, &state);
-
+     
        
-        auto p = make_float3((curand_uniform_double(&state) * 2) - 1, (curand_uniform_double(&state) * 2) - 1 , (curand_uniform_double(&state) * 2) - 1);
+        auto p = make_float3((curand_uniform_double(state) * 2) - 1, (curand_uniform_double(state) * 2) - 1 , (curand_uniform_double(state) * 2) - 1);
         if (pow(getLength(p), 2.0f) >= 1) continue;
         return p;
     }
 }
 
 //random between 0-1
-__device__ float randy() {
+__device__ float randy(curandState* state) {
  
-        curandState state;
+    
 
-        int tId = (threadIdx.x + (blockIdx.x * blockDim.x)) + (threadIdx.y + blockIdx.y * blockDim.y) * blockDim.x * gridDim.x;
+     
 
-        curand_init((unsigned long long)clock() + tId, 0, 0, &state);
-
-        double rand1 = (curand_uniform_double(&state) ) ;
+        double rand1 = (curand_uniform_double(state) ) ;
       
        
         return rand1;
@@ -754,7 +747,7 @@ __device__ float3 checker(float3 uv, float3 p, float3 col1, float3 col2) {
 }
 
 //main ray fucntion
-__device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree, singleobject* b, cudaTextureObject_t* tex, int backtex) {
+__device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree, singleobject* b, cudaTextureObject_t* tex, int backtex, curandState *state) {
    
     float3 raydir = dir;
     float3 rayo = origin;
@@ -813,10 +806,10 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
                 //diffuse mat
                 float3 target = hitpoint + N;
                     if (b[g].addional.x == 0) {
-                        target = target+ random_in_unit_sphere();
+                        target = target+ random_in_unit_sphere(state);
                     }
                     else {
-                        target = target + getNormalizedVec( random_in_unit_sphere());
+                        target = target + getNormalizedVec( random_in_unit_sphere(state));
 
                     }
 
@@ -841,24 +834,24 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
                 cur_attenuation = cur_attenuation * ocolor;
                 rayo = hitpoint;
                 
-                raydir = reflected + make3(b[g].addional.y) * random_in_unit_sphere();
+                raydir = reflected + make3(b[g].addional.y) * random_in_unit_sphere(state);
 
             }
             else if (b[g].mat == 5) {
                 //glossy mat
-                float rand = randy();
+                float rand = randy(state);
 
                 if (rand > 0.8) {
                     float3 reflected = reflect(getNormalizedVec(raydir), N);
                     cur_attenuation = cur_attenuation * ocolor;
                     rayo = hitpoint;
 
-                    raydir = reflected + make3(b[g].addional.y) * random_in_unit_sphere();
+                    raydir = reflected + make3(b[g].addional.y) * random_in_unit_sphere(state);
 
                 }else{
                     float3 target = hitpoint + N;
                    
-                        target = target + random_in_unit_sphere();
+                        target = target + random_in_unit_sphere(state);
                   
 
                     cur_attenuation = cur_attenuation * ocolor;
@@ -883,7 +876,7 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
                 float sin_theta = sqrt(1.0 - cos_theta * cos_theta);
                 bool cannot_refract = (refraction_ratio * sin_theta) > 1.0;
                 float3 reflected;
-                if (cannot_refract || reflectance(cos_theta, refraction_ratio) > randy()) {
+                if (cannot_refract || reflectance(cos_theta, refraction_ratio) > randy(state)) {
                     reflected = reflect(getNormalizedVec(dir), N);
 
 
@@ -947,9 +940,9 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
 
 
 //random function for depth of field
-__device__ float3 random_in_unit_disk() {
+__device__ float3 random_in_unit_disk(curandState* state) {
     while (true) {
-        float3 p = make_float3((randy()*2)-1, (randy() * 2) - 1, 0);
+        float3 p = make_float3((randy(state)*2)-1, (randy(state) * 2) - 1, 0);
         if (pow(getLength(p), 2.0f) >= 1) continue;
         return p;
     }
@@ -1029,12 +1022,12 @@ __global__ void Kernel(int* outputr, int* outputg, int* outputb, float* settings
         float nv = (float(y) + curand_uniform_double(&state)) / float(SCREEN_HEIGHT / settings[11]);
 
         //get ray direction
-        float3 rd = make3(lens_radius) * random_in_unit_disk();
+        float3 rd = make3(lens_radius) * random_in_unit_disk(&state);
         float3 offset = uu * make3(rd.x) + vu * make3(rd.y);
         float3 dir = lower_left_corner + make3(nu) * horizontal + make3(nv) * vertical - lookfrom -offset;
 
         //calculate ray
-        ColorOutput = ColorOutput + raycolor(lookfrom +offset, dir, settings[9],  bvhtree, b,tex, settings[12]);
+        ColorOutput = ColorOutput + raycolor(lookfrom +offset, dir, settings[9],  bvhtree, b,tex, settings[12],&state);
 
     }
 
