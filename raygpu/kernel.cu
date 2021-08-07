@@ -62,7 +62,7 @@ typedef struct
     float3 dim;
     float3 col;
     int texnum = -1;
-
+    int rtexnum = -1;
     float3 addional;
 
 }singleobject;
@@ -787,7 +787,7 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
 
             //get defualt color
             float3 ocolor = b[g].col;
-
+            float rough = b[g].addional.y;
             //proccess textures
             if (b[g].texnum >= 0) {
                 uchar4 C = tex2D<uchar4>(tex[b[g].texnum], texco.x, -texco.y + 1);
@@ -799,6 +799,13 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
                ocolor =  checker(texco, hitpoint, make3(0.8), b[g].col);
 
             }
+
+            if (b[g].rtexnum >= 0) {
+                uchar4 C = tex2D<uchar4>(tex[b[g].rtexnum], texco.x, -texco.y + 1);
+
+                rough = float(C.x) / 255 /2;
+            }
+           
           
         
             if (b[g].mat == 0) {
@@ -834,7 +841,7 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
                 cur_attenuation = cur_attenuation * ocolor;
                 rayo = hitpoint;
                 
-                raydir = reflected + make3(b[g].addional.y) * random_in_unit_sphere(state);
+                raydir = reflected + make3(rough) * random_in_unit_sphere(state);
 
             }
             else if (b[g].mat == 5) {
@@ -846,7 +853,7 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
                     cur_attenuation = cur_attenuation * ocolor;
                     rayo = hitpoint;
 
-                    raydir = reflected + make3(b[g].addional.y) * random_in_unit_sphere(state);
+                    raydir = reflected + make3(rough) * random_in_unit_sphere(state);
 
                 }else{
                     float3 target = hitpoint + N;
@@ -1436,6 +1443,14 @@ void read(std::string File, singleobject* b, std::string* texpaths) {
                     b[line].texnum = gettexnum(substr, texpaths);
 
                   }
+                }
+
+                else if (colum == 37) {
+
+                if (substr != "no") {
+                    b[line].rtexnum = gettexnum(substr, texpaths);
+
+                }
                 }
            
 

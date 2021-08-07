@@ -228,6 +228,22 @@ class ExportSomeData(Operator, ExportHelper):
             trans = principled.inputs['Transmission'].default_value;
             em = principled.inputs['Emission'].default_value;
             rough = principled.inputs['Roughness'].default_value;
+            
+            try:
+                linkk = principled.inputs['Roughness'].links[0]
+                link_nodee = linkk.from_node
+             
+                
+                
+                
+                texerr = os.path.splitext(link_nodee.image.name)[0]+'.ppm'
+                patherrr = bpy.path.abspath(link_nodee.image.filepath)
+                if patherrr not in paths:
+                    paths.append(patherrr)
+                
+            except:
+                texerr = "no"
+               
             iqr =  principled.inputs['IOR'].default_value;
             spec =  principled.inputs['Specular'].default_value;
             mat = 0;
@@ -273,9 +289,9 @@ class ExportSomeData(Operator, ExportHelper):
             if(principled.inputs['Alpha'].default_value < 0.5):
                 tex = 1;
             
-            file.write( '%f,%f,%f,2,%f,%f,%f,%f,0,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%s' 
+            file.write( '%f,%f,%f,2,%f,%f,%f,%f,0,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%s,%s' 
             % (v1.co.x,-v1.co.z,v1.co.y,col[0]*mult,col[1]*mult,col[2]*mult,rough,v2.co.x,-v2.co.z,v2.co.y,mat,v3.co.x,-v3.co.z,v3.co.y, 
-            face.normal[0],-face.normal[2],face.normal[1],v1.normal[0],-v1.normal[2],v1.normal[1],v2.normal[0],-v2.normal[2],v2.normal[1],v3.normal[0],-v3.normal[2],v3.normal[1],us[0], uvs[0],us[1], uvs[1],us[2], uvs[2],smooth,tex,texer) )
+            face.normal[0],-face.normal[2],face.normal[1],v1.normal[0],-v1.normal[2],v1.normal[1],v2.normal[0],-v2.normal[2],v2.normal[1],v3.normal[0],-v3.normal[2],v3.normal[1],us[0], uvs[0],us[1], uvs[1],us[2], uvs[2],smooth,tex,texer,texerr) )
             file.write('\n')
         file.close()
         print("proccesing")
