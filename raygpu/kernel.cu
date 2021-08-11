@@ -79,7 +79,8 @@ typedef struct
  
    
     int count;
-
+    int hit_node;
+    int miss_node;
     int under;
 
     float3 min;
@@ -93,8 +94,8 @@ typedef struct
 //CPU only BVH building node helper struct. This is info only used on the cpu for buidling that does not need to be put onto the gpu
 typedef struct
 {
-    int under[10000];
-    int count;
+    int under[50000];
+  
 
 }bvhunder;
 
@@ -476,6 +477,58 @@ __device__ float3 singlehit(float3 origin, float3 dir, int x, singleobject* b) {
 //overall hit function
 __device__ float3 hit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) {
 
+    float3 out = make_float3(10000000, 0, 0);
+
+    //is not hit
+    bool oof = true;
+
+    int box_index = 0;
+    while (box_index != -1) {
+       
+        float dister;
+        bool hit = aabb2(origin, dir, bvhtree[box_index].min, bvhtree[box_index].max, dister);
+       
+
+        if (hit) {
+            if (bvhtree[box_index].end) {
+                float3 temp = singlehit(origin, dir, bvhtree[box_index].under, b);
+                //if hit
+                if (temp.x > -0.01 && temp.x < out.x) {
+
+                    out = temp;
+                    oof = false;
+
+
+
+
+                }
+            }
+            box_index = bvhtree[box_index].hit_node; // hit link
+        }
+        else {
+            box_index = bvhtree[box_index].miss_node; // miss link
+        }
+
+     
+    }
+    if (oof == true) {
+        out = make_float3(-1, 0, 0);
+
+    }
+
+    return out;
+}
+
+
+
+
+
+
+
+
+
+__device__ float3 oldhit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) {
+
     //cant dynamically allocate(too big)
     //becouse array cant be resized the fucntion koves along the array using part of it
 
@@ -497,10 +550,10 @@ __device__ float3 hit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) 
     //is not hit
     bool oof = true;
 
-   
+
     //while array is not empty
     while (mini < num) {
-    
+
 
 
         //get array length(so it doesnt change)
@@ -526,21 +579,21 @@ __device__ float3 hit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) 
 
             //get boudning box distance of node
             float dister;
-            if (aabb2(origin, dir, bvhtree[tracked[node]].min, bvhtree[tracked[node]].max,dister)) {
+            if (aabb2(origin, dir, bvhtree[tracked[node]].min, bvhtree[tracked[node]].max, dister)) {
 
                 //if distance is less that minumim distance so far
                 if (dister < out.x) {
-                   //if it is an end node
+                    //if it is an end node
                     if (bvhtree[tracked[node]].end == true) {
                         //run hit function
                         float3 temp = singlehit(origin, dir, bvhtree[tracked[node]].under, b);
                         //if hit
                         if (temp.x > -0.01 && temp.x < out.x) {
-                          
-                                out = temp;
-                                oof = false;
-                               
-                            
+
+                            out = temp;
+                            oof = false;
+
+
 
 
                         }
@@ -557,9 +610,9 @@ __device__ float3 hit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) 
 
 
                 }
-              
 
-                
+
+
 
 
 
@@ -581,14 +634,6 @@ __device__ float3 hit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) 
     return out;
 
 }
-
-
-
-
-
-
-
-
 
 
 
@@ -1624,6 +1669,8 @@ void sorto(float* output, float3 input[], int size, int* yett) {
 
 }
 //split objects in array into two groups for bvh
+
+
 void split(int input[],int* a, int* b, int num, singleobject* bb) {
 
 
@@ -1665,6 +1712,31 @@ void split(int input[],int* a, int* b, int num, singleobject* bb) {
 
 }
 
+
+void build_links(int self, int next_right_node, bvh* nbvhtree) {
+
+    if (nbvhtree[self].end == false) {
+
+        int child1 = nbvhtree[self].children[0];
+        int child2 = nbvhtree[self].children[1];
+
+        nbvhtree[self].hit_node = child1;
+        nbvhtree[self].miss_node = next_right_node;
+
+        build_links(child1, child2, nbvhtree);
+        build_links(child2, next_right_node, nbvhtree);
+
+    }
+      
+
+    else {
+
+        nbvhtree[self].hit_node = next_right_node;
+        nbvhtree[self].miss_node = nbvhtree[self].hit_node;
+    }
+    
+}
+    
 //bvh building algorittm
 void build_bvh(bvh* nbvhtree, singleobject* bb) {
 
@@ -1834,7 +1906,7 @@ void build_bvh(bvh* nbvhtree, singleobject* bb) {
     }
     delete[] under;
   
-
+    build_links(0, -1, nbvhtree);
 
 }
 
