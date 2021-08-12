@@ -38,7 +38,7 @@ const int upscale = 1;
 namespace fs = std::filesystem;
 
 
- //object struct
+//object struct
 typedef struct
 {
     int type;
@@ -53,9 +53,9 @@ typedef struct
     float3 n2 = { -2, -3, -20 };
     float3 n3 = { -2, -3, -20 };
     //tex coords
-    float3 t1 = { 0, 1,0};
-    float3 t2 = {0, 0,0};
-    float3 t3 = {1,0,0};
+    float3 t1 = { 0, 1,0 };
+    float3 t2 = { 0, 0,0 };
+    float3 t3 = { 1,0,0 };
     bool smooth = false;
     bool tex = false;
     int mat;
@@ -72,12 +72,12 @@ typedef struct
 //BVH node struct
 typedef struct
 {
-    bool active ;
-    int id;
+    bool active;
+
     int children[2];
 
- 
-   
+
+
     int count;
     int hit_node;
     int miss_node;
@@ -91,13 +91,7 @@ typedef struct
 
 
 
-//CPU only BVH building node helper struct. This is info only used on the cpu for buidling that does not need to be put onto the gpu
-typedef struct
-{
-    int under[50000];
-  
 
-}bvhunder;
 
 
 
@@ -126,12 +120,12 @@ float3 campos = { 0, 0, 2 };
 float3 look = { 0, 0, 0 };
 float aperturee = 0.01f;
 float focus_diste = 3;
- int actualbvhnum =0;
- int max_depthh = 50;
- int samples_per_pixell = 1;
- int fovv = 45;
+int actualbvhnum = 0;
+int max_depthh = 50;
+int samples_per_pixell = 1;
+int fovv = 45;
 
- //calculate screen size
+//calculate screen size
 const int s = SCREEN_WIDTH * SCREEN_HEIGHT;
 
 
@@ -145,7 +139,7 @@ int noutb[s] = { 0 };
 
 
 //cuda starter function 
-cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree, singleobject* allobjects,cudaTextureObject_t* texarray , int divisor);
+cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree, singleobject* allobjects, cudaTextureObject_t* texarray, int divisor);
 
 
 
@@ -162,7 +156,7 @@ inline float3 getCrossProduct(float3 a, float3 b)
 __host__ __device__
 inline float3 make3(float a)
 {
-    return make_float3(a,a,a);
+    return make_float3(a, a, a);
 }
 __device__
 inline float4 getCrossProduct(float4 a, float4 b)
@@ -231,7 +225,7 @@ __host__ __device__  float3 operator-(const float3& a, const float3& b) {
 }
 __host__ __device__  float3 operator*(const float3& a, const float3& b) {
 
-    return make_float3(a.x *b.x, a.y * b.y, a.z * b.z);
+    return make_float3(a.x * b.x, a.y * b.y, a.z * b.z);
 
 }
 __host__ __device__  float3 operator/(const float3& a, const float3& b) {
@@ -251,7 +245,7 @@ __device__ bool get_face_normal(float3 dir, float3 outward_normal) {
 
 
 //bounding box (with distance)
-__device__ bool aabb2(float3 o, float3 d, float3 a, float3 b, float &dist) {
+__device__ bool aabb2(float3 o, float3 d, float3 a, float3 b, float& dist) {
     float t_min = 0;
     float t_max = 10000;
     float origin[3] = { o.x,o.y,o.z };
@@ -286,60 +280,60 @@ __device__ bool aabb2(float3 o, float3 d, float3 a, float3 b, float &dist) {
 //triangle hit
 __device__ float3 hit_tri(float3 rayOrigin,
     float3 rayVector,
-   float3 vertex0, float3 vertex1, float3 vertex2)
+    float3 vertex0, float3 vertex1, float3 vertex2)
 {
- 
- 
-        const float EPSILON = 0.0001;
-  
-        float3 edge1, edge2, h, s, q;
-        float a, f, u, v;
-        edge1 = vertex1 - vertex0;
-        edge2 = vertex2 - vertex0;
-        h = getCrossProduct(rayVector, edge2);
-        a = getDotProduct(edge1, h);
-        if (a > -EPSILON && a < EPSILON)
-            return make_float3(-1, 0, 0);   
-        f = 1.0 / a;
-        s = rayOrigin - vertex0;
-        u = f * getDotProduct(s, h);
-        if (u < 0.0 || u > 1.0)
-            return make_float3(-1, 0, 0);
-        q = getCrossProduct(s, edge1);
-        v = f * getDotProduct(rayVector, q);
-        if (v < 0.0 || u + v > 1.0)
-            return make_float3(-1, 0, 0);
-   
-        float t = f * getDotProduct(edge2, q);
-        if (t > EPSILON) // ray intersection
-        {
 
-            return make_float3(t, 0, 0);
-        }
-        else
-            return make_float3(-1, 0, 0);
 
-   
+    const float EPSILON = 0.0001;
+
+    float3 edge1, edge2, h, s, q;
+    float a, f, u, v;
+    edge1 = vertex1 - vertex0;
+    edge2 = vertex2 - vertex0;
+    h = getCrossProduct(rayVector, edge2);
+    a = getDotProduct(edge1, h);
+    if (a > -EPSILON && a < EPSILON)
+        return make_float3(-1, 0, 0);
+    f = 1.0 / a;
+    s = rayOrigin - vertex0;
+    u = f * getDotProduct(s, h);
+    if (u < 0.0 || u > 1.0)
+        return make_float3(-1, 0, 0);
+    q = getCrossProduct(s, edge1);
+    v = f * getDotProduct(rayVector, q);
+    if (v < 0.0 || u + v > 1.0)
+        return make_float3(-1, 0, 0);
+
+    float t = f * getDotProduct(edge2, q);
+    if (t > EPSILON) // ray intersection
+    {
+
+        return make_float3(t, 0, 0);
+    }
+    else
+        return make_float3(-1, 0, 0);
+
+
 }
 
 //sphere hit
 __device__ float3 hit_sphere(const float3 center, float radius, float3 origin, float3 dir) {
-    float3 off = make3(radius+0.1);
-   
-        float3 oc = origin - center;
-        float a = pow(getLength(dir), 2.0f);
-        float half_b = getDotProduct(oc, dir);
-        float3 outward_normal = (origin - center) / make3(radius);
-        float norm = get_face_normal(dir, outward_normal);
-        float c = pow(getLength(oc), 2.0f) - radius * radius;
-        float discriminant = half_b * half_b - a * c;
-        if (discriminant < 0) {
-            return make_float3(-1.0, norm, 0);
-        }
-        else {
-            return make_float3((-half_b - sqrt(discriminant)) / a, norm, 0);
-        }
- 
+    float3 off = make3(radius + 0.1);
+
+    float3 oc = origin - center;
+    float a = pow(getLength(dir), 2.0f);
+    float half_b = getDotProduct(oc, dir);
+    float3 outward_normal = (origin - center) / make3(radius);
+    float norm = get_face_normal(dir, outward_normal);
+    float c = pow(getLength(oc), 2.0f) - radius * radius;
+    float discriminant = half_b * half_b - a * c;
+    if (discriminant < 0) {
+        return make_float3(-1.0, norm, 0);
+    }
+    else {
+        return make_float3((-half_b - sqrt(discriminant)) / a, norm, 0);
+    }
+
 }
 //get bouding box dimensions for objects
 __host__ __device__ bool bounding_box(int obj, float3& min, float3& max, singleobject* b) {
@@ -358,7 +352,7 @@ __host__ __device__ bool bounding_box(int obj, float3& min, float3& max, singleo
         float3 v1 = b[obj].pos;
         float3 v2 = b[obj].dim;
         float3 v3 = b[obj].rot;
-       
+
 
         min = make_float3(fmin(v1.x, fmin(v2.x, v3.x)) - 0.01, fmin(v1.y, fmin(v2.y, v3.y)) - 0.01, fmin(v1.z, fmin(v2.z, v3.z)) - 0.01);
         max = make_float3(fmax(v1.x, fmax(v2.x, v3.x)) + 0.01, fmax(v1.y, fmax(v2.y, v3.y)) + 0.01, fmax(v1.z, fmax(v2.z, v3.z)) + 0.01);
@@ -377,21 +371,21 @@ __host__ __device__ bool bounding_box(int obj, float3& min, float3& max, singleo
 
 
 //function for cacluating boudning box of two objects
- void surrounding_box(float3 amin, float3 amax, float3 bmin, float3 bmax, float3 &min,float3 &max) {
+void surrounding_box(float3 amin, float3 amax, float3 bmin, float3 bmax, float3& min, float3& max) {
     min = make_float3(fmin(amin.x, bmin.x),
         fmin(amin.y, bmin.y),
         fmin(amin.z, bmin.z));
 
-   max = make_float3(fmax(amax.x, bmax.x),
+    max = make_float3(fmax(amax.x, bmax.x),
         fmax(amax.y, bmax.y),
         fmax(amax.z, bmax.z));
 
-   
+
 }
 
- //calculate bounding box of array
- bool arraybound(float3 &min, float3 &max, int objs[], int len, singleobject* b) {
-     if (len == 0) return{ false };
+//calculate bounding box of array
+bool arraybound(float3& min, float3& max, int objs[], int len, singleobject* b) {
+    if (len == 0) return{ false };
 
     float3 temp_min = make3(-1);
     float3 temp_max = make3(-1);
@@ -408,15 +402,15 @@ __host__ __device__ bool bounding_box(int obj, float3& min, float3& max, singleo
             surrounding_box(min, max, temp_min, temp_max, min, max);
         }
 
-       
+
         first_box = false;
     }
 
     return true;
 }
 
- //check if bvh node is hit(for preview purposes)
- __device__ float3 bvhhit(float3 origin, float3 dir , bvh* bvhtree) {
+//check if bvh node is hit(for preview purposes)
+__device__ float3 bvhhit(float3 origin, float3 dir, bvh* bvhtree) {
 
 
     //check if in valid index
@@ -425,7 +419,7 @@ __host__ __device__ bool bounding_box(int obj, float3& min, float3& max, singleo
         return make_float3(-1, 0, 0);
     }
     float dist = 1;
-    if ( aabb2(origin, dir, bvhtree[abs(edebugnum[0])].min, bvhtree[abs(edebugnum[0])].max,dist)) {
+    if (aabb2(origin, dir, bvhtree[abs(edebugnum[0])].min, bvhtree[abs(edebugnum[0])].max, dist)) {
 
 
         return  make_float3(dist, 0, 0);
@@ -457,10 +451,10 @@ __device__ float3 singlehit(float3 origin, float3 dir, int x, singleobject* b) {
     }
 
     if (dist.x < mindist && dist.x > -0.0) {
-    
+
         mindist = dist.x;
         closest = x;
-     
+
         isnothit = false;
     }
 
@@ -484,10 +478,10 @@ __device__ float3 hit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) 
 
     int box_index = 0;
     while (box_index != -1) {
-       
+
         float dister;
         bool hit = aabb2(origin, dir, bvhtree[box_index].min, bvhtree[box_index].max, dister);
-       
+
 
         if (hit) {
             if (bvhtree[box_index].end) {
@@ -509,7 +503,7 @@ __device__ float3 hit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) 
             box_index = bvhtree[box_index].miss_node; // miss link
         }
 
-     
+
     }
     if (oof == true) {
         out = make_float3(-1, 0, 0);
@@ -647,9 +641,9 @@ __device__ float3 oldhit(float3 origin, float3 dir, bvh* bvhtree, singleobject* 
 //random fucntions
 __device__ float3 random_in_unit_sphere(curandState* state) {
     while (true) {
-     
-       
-        auto p = make_float3((curand_uniform_double(state) * 2) - 1, (curand_uniform_double(state) * 2) - 1 , (curand_uniform_double(state) * 2) - 1);
+
+
+        auto p = make_float3((curand_uniform_double(state) * 2) - 1, (curand_uniform_double(state) * 2) - 1, (curand_uniform_double(state) * 2) - 1);
         if (pow(getLength(p), 2.0f) >= 1) continue;
         return p;
     }
@@ -657,22 +651,22 @@ __device__ float3 random_in_unit_sphere(curandState* state) {
 
 //random between 0-1
 __device__ float randy(curandState* state) {
- 
-    
 
-     
 
-        double rand1 = (curand_uniform_double(state) ) ;
-      
-       
-        return rand1;
-    
+
+
+
+    double rand1 = (curand_uniform_double(state));
+
+
+    return rand1;
+
 }
 
 //functions for mats
 
 
-__device__ float3 reflect( float3 v, float3 n) {
+__device__ float3 reflect(float3 v, float3 n) {
     return v - make_float3(2.0 * getDotProduct(v, n), 2.0 * getDotProduct(v, n), 2.0 * getDotProduct(v, n)) * n;
 }
 
@@ -708,9 +702,9 @@ __device__ float distance(float3 p1, float3 p2)
 
 
 //function for getting normal of objects
-__device__ float3 getnormal(int obj, float3 origin, float3 hitpoint, singleobject* b, float3 dir, float3 &texco) {
+__device__ float3 getnormal(int obj, float3 origin, float3 hitpoint, singleobject* b, float3 dir, float3& texco) {
 
-    
+
 
     if (b[obj].type == 0) {
         return (hitpoint - b[obj].pos) / make3(b[obj].dim.x);
@@ -718,64 +712,64 @@ __device__ float3 getnormal(int obj, float3 origin, float3 hitpoint, singleobjec
     }
 
 
-	else  if (b[obj].type == 2) {
-		float3 uv;
+    else  if (b[obj].type == 2) {
+        float3 uv;
 
-		float3 vertex0 = b[obj].pos;
-		float3 vertex1 = b[obj].dim;
-		float3 vertex2 = b[obj].rot;
+        float3 vertex0 = b[obj].pos;
+        float3 vertex1 = b[obj].dim;
+        float3 vertex2 = b[obj].rot;
 
         //get normal
-		float3 v0v1 = vertex1 - vertex0;
-		float3 v0v2 = vertex2 - vertex0;
-	
-		float3 N = getCrossProduct(v0v1, v0v2);
+        float3 v0v1 = vertex1 - vertex0;
+        float3 v0v2 = vertex2 - vertex0;
+
+        float3 N = getCrossProduct(v0v1, v0v2);
 
 
 
-		float3 pvec = getCrossProduct(dir, v0v2);
-		float det = getDotProduct(v0v1, pvec);
-
-	
+        float3 pvec = getCrossProduct(dir, v0v2);
+        float det = getDotProduct(v0v1, pvec);
 
 
-		float invDet = 1 / det;
 
-		float3 tvec = origin - vertex0;
+
+        float invDet = 1 / det;
+
+        float3 tvec = origin - vertex0;
         //get uv
-		uv.x = getDotProduct(tvec, pvec) * invDet;
+        uv.x = getDotProduct(tvec, pvec) * invDet;
 
 
-		float3 qvec = getCrossProduct(tvec, v0v1);
-		uv.y = getDotProduct(dir, qvec) * invDet;
+        float3 qvec = getCrossProduct(tvec, v0v1);
+        uv.y = getDotProduct(dir, qvec) * invDet;
 
 
-		uv.z = 1 - uv.x - uv.y;
+        uv.z = 1 - uv.x - uv.y;
         //get tex coords
-		texco = make3(uv.z) * b[obj].t1 + make3(uv.x) * b[obj].t2 + make3(uv.y) * b[obj].t3;
+        texco = make3(uv.z) * b[obj].t1 + make3(uv.x) * b[obj].t2 + make3(uv.y) * b[obj].t3;
 
         //checl if object uses new system
-		if (b[obj].norm.z != -20) {
-			N = b[obj].norm;
+        if (b[obj].norm.z != -20) {
+            N = b[obj].norm;
 
 
 
             //check if object is smooth
-			if (b[obj].n1.z != -20 && b[obj].smooth) {
+            if (b[obj].n1.z != -20 && b[obj].smooth) {
 
-				float3 n0 = b[obj].n1;
-				float3 n1 = b[obj].n2;
-				float3 n2 = b[obj].n3;
-				N = make3(uv.z) * n0 + make3(uv.x) * n1 + make3(uv.y) * n2;
-			}
-
-
-		}
-		return  getNormalizedVec(N);
-	}
+                float3 n0 = b[obj].n1;
+                float3 n1 = b[obj].n2;
+                float3 n2 = b[obj].n3;
+                N = make3(uv.z) * n0 + make3(uv.x) * n1 + make3(uv.y) * n2;
+            }
 
 
-	return getNormalizedVec(hitpoint - b[obj].pos);
+        }
+        return  getNormalizedVec(N);
+    }
+
+
+    return getNormalizedVec(hitpoint - b[obj].pos);
 
 
 }
@@ -785,27 +779,27 @@ __device__ float3 checker(float3 uv, float3 p, float3 col1, float3 col2) {
     float u2 = floor(uv.x * 10);
     float v2 = floor(uv.y * 10);
     float yes = u2 + v2;
-    if (fmod(yes,(float)2) == 0)
+    if (fmod(yes, (float)2) == 0)
         return col1;
     else
         return col2;
 }
 
 //main ray fucntion
-__device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree, singleobject* b, cudaTextureObject_t* tex, int backtex, curandState *state) {
-   
+__device__ float3 raycolor(float3 origin, float3 dir, int max_depth, bvh* bvhtree, singleobject* b, cudaTextureObject_t* tex, int backtex, curandState* state) {
+
     float3 raydir = dir;
     float3 rayo = origin;
     float3 cur_attenuation = make3(1.0f);
-    
+
     for (int i = 0; i < max_depth; i++) {
-      
-      
-      
+
+
+
         //initialize texure coords
         float3 texco;
         //run hit funciton
-        float3 hitoride = hit(rayo, raydir,bvhtree, b);
+        float3 hitoride = hit(rayo, raydir, bvhtree, b);
         //get hit object id
         int g = int(hitoride.y);
         //get distance
@@ -813,19 +807,19 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
 
         //if distance is greater than zero (hit)
         if (hit > 0.0) {
-            
 
-        
-         //get hit point
+
+
+            //get hit point
             float3 hitt = make3(hit);
             float3 hitpoint = rayo + (hitt * raydir);
-          
-          //calculate normals and direction
-            float3 N =  getnormal(g, rayo, hitpoint, b, raydir, texco);
 
-            
+            //calculate normals and direction
+            float3 N = getnormal(g, rayo, hitpoint, b, raydir, texco);
+
+
             bool inorout = get_face_normal(raydir, N);
-     
+
             N = inorout ? N : N * make3(-1);
 
 
@@ -836,45 +830,45 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
             //proccess textures
             if (b[g].texnum >= 0) {
                 uchar4 C = tex2D<uchar4>(tex[b[g].texnum], texco.x, -texco.y + 1);
-               
+
                 ocolor = make_float3(float(C.x) / 255, float(C.y) / 255, float(C.z) / 255);
             }
             else if (b[g].tex) {
 
-               ocolor =  checker(texco, hitpoint, make3(0.8), b[g].col);
+                ocolor = checker(texco, hitpoint, make3(0.8), b[g].col);
 
             }
 
             if (b[g].rtexnum >= 0) {
                 uchar4 C = tex2D<uchar4>(tex[b[g].rtexnum], texco.x, -texco.y + 1);
 
-                rough = float(C.x) / 255 /2;
+                rough = float(C.x) / 255 / 2;
             }
-           
-          
-        
+
+
+
             if (b[g].mat == 0) {
 
                 //diffuse mat
                 float3 target = hitpoint + N;
-                    if (b[g].addional.x == 0) {
-                        target = target+ random_in_unit_sphere(state);
-                    }
-                    else {
-                        target = target + getNormalizedVec( random_in_unit_sphere(state));
+                if (b[g].addional.x == 0) {
+                    target = target + random_in_unit_sphere(state);
+                }
+                else {
+                    target = target + getNormalizedVec(random_in_unit_sphere(state));
 
-                    }
+                }
 
 
-                cur_attenuation = cur_attenuation  * ocolor;
+                cur_attenuation = cur_attenuation * ocolor;
 
                 rayo = hitpoint;
                 raydir = getNormalizedVec(target - hitpoint);
-               
+
             }
             else if (b[g].mat == 2) {
                 //mirror mat
-                
+
                 cur_attenuation = cur_attenuation * ocolor;
                 rayo = hitpoint;
                 raydir = reflect(getNormalizedVec(raydir), N);
@@ -885,7 +879,7 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
                 float3 reflected = reflect(getNormalizedVec(raydir), N);
                 cur_attenuation = cur_attenuation * ocolor;
                 rayo = hitpoint;
-                
+
                 raydir = reflected + make3(rough) * random_in_unit_sphere(state);
 
             }
@@ -900,11 +894,12 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
 
                     raydir = reflected + make3(rough) * random_in_unit_sphere(state);
 
-                }else{
+                }
+                else {
                     float3 target = hitpoint + N;
-                   
-                        target = target + random_in_unit_sphere(state);
-                  
+
+                    target = target + random_in_unit_sphere(state);
+
 
                     cur_attenuation = cur_attenuation * ocolor;
 
@@ -912,19 +907,19 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
                     raydir = getNormalizedVec(target - hitpoint);
 
                 }
-               
 
 
-             
+
+
             }
-          
+
             else if (b[g].mat == 4) {
                 //glass mat
 
                 float ir = b[g].addional.y;
 
                 float refraction_ratio = inorout ? (1.0 / ir) : ir;
-                float cos_theta = min(getDotProduct(getNormalizedVec(dir) * make3(-1),N), 1.0);
+                float cos_theta = min(getDotProduct(getNormalizedVec(dir) * make3(-1), N), 1.0);
                 float sin_theta = sqrt(1.0 - cos_theta * cos_theta);
                 bool cannot_refract = (refraction_ratio * sin_theta) > 1.0;
                 float3 reflected;
@@ -933,56 +928,56 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
 
 
                 }
-                    
+
                 else {
 
                     reflected = refract(getNormalizedVec(dir), N, refraction_ratio);
                 }
-                  
+
                 cur_attenuation = cur_attenuation * ocolor;
                 rayo = hitpoint;
                 raydir = reflected;
 
             }
-            
-            else{
+
+            else {
                 //emmisive mat
                 return ocolor * cur_attenuation;
             }
-     
-          
+
+
 
 
 
         }
         else {
 
-        if (backtex > -1) {
+            if (backtex > -1) {
 
 
-            float3 unit_direction = getNormalizedVec(raydir);
-         
-            float m = 2. * sqrt(pow(unit_direction.x, 2.) + pow(unit_direction.y, 2.) + pow(unit_direction.z + 1., 2.0));
-            float3 t = unit_direction / make3(m) + make3(.5);
-            t.y = -t.y;
+                float3 unit_direction = getNormalizedVec(raydir);
 
-            uchar4 color1 = tex2D<uchar4>(tex[backtex], t.x, -t.y + 1);
-            float3 color2 = make_float3(float(color1.x) / 255, float(color1.y) / 255, float(color1.z) / 255);
+                float m = 2. * sqrt(pow(unit_direction.x, 2.) + pow(unit_direction.y, 2.) + pow(unit_direction.z + 1., 2.0));
+                float3 t = unit_direction / make3(m) + make3(.5);
+                t.y = -t.y;
 
-
-            return  cur_attenuation * color2 * make_float3(backgroundintensity[0], backgroundintensity[0], backgroundintensity[0]);
+                uchar4 color1 = tex2D<uchar4>(tex[backtex], t.x, -t.y + 1);
+                float3 color2 = make_float3(float(color1.x) / 255, float(color1.y) / 255, float(color1.z) / 255);
 
 
-        }
-              //calculate envoriment
+                return  cur_attenuation * color2 * make_float3(backgroundintensity[0], backgroundintensity[0], backgroundintensity[0]);
+
+
+            }
+            //calculate envoriment
             float3 unit_direction = getNormalizedVec(raydir);
             float t = 0.5 * (unit_direction.y + 1.0);
             float3 c = make_float3((1.0 - t), (1.0 - t), (1.0 - t)) * make_float3(1.0, 1.0, 1.0) + make_float3(t, t, t) * make_float3(0.5, 0.7, 1.0);
             return cur_attenuation * c * make_float3(backgroundintensity[0], backgroundintensity[0], backgroundintensity[0]);
 
         }
-       
-        
+
+
     }
     //return black
     return make_float3(0.0, 0.0, 0.0);
@@ -994,7 +989,7 @@ __device__ float3 raycolor(float3 origin,float3 dir, int max_depth, bvh* bvhtree
 //random function for depth of field
 __device__ float3 random_in_unit_disk(curandState* state) {
     while (true) {
-        float3 p = make_float3((randy(state)*2)-1, (randy(state) * 2) - 1, 0);
+        float3 p = make_float3((randy(state) * 2) - 1, (randy(state) * 2) - 1, 0);
         if (pow(getLength(p), 2.0f) >= 1) continue;
         return p;
     }
@@ -1003,7 +998,7 @@ __device__ float3 random_in_unit_disk(curandState* state) {
 //Main kernel for every pixel
 __global__ void Kernel(int* outputr, int* outputg, int* outputb, float* settings, bvh* bvhtree, singleobject* b, cudaTextureObject_t* tex)
 {
- 
+
 
 
     //get x, y and w
@@ -1020,41 +1015,41 @@ __global__ void Kernel(int* outputr, int* outputg, int* outputb, float* settings
 
     //get aspect ratio
     float aspect = float(SCREEN_WIDTH / settings[11]) / float(SCREEN_HEIGHT / settings[11]);
-  
-   
+
+
     //get fov and convert to radians
-    float fov = settings[8] * M_PI/180;
-   
-   //calculate heigh and width of viewport
+    float fov = settings[8] * M_PI / 180;
+
+    //calculate heigh and width of viewport
     float viewport_height = 2.0 * tan(fov / 2);
     float viewport_width = aspect * viewport_height;
- 
+
     //get camera position and where to look at
     float3 lookfrom = make_float3(settings[0], settings[1], settings[2]);
     float3 lookat = make_float3(settings[3], settings[4], settings[5]);
 
     //get aperture and focus distance
-    
+
     float focus_dist = settings[7];
 
     //define up direction
     float3 vup = make_float3(0, 1, 0);
- 
+
 
     //calculate look at info 
-    float3 wu = getNormalizedVec(lookfrom - lookat) ;
+    float3 wu = getNormalizedVec(lookfrom - lookat);
     float3 uu = getNormalizedVec(getCrossProduct(vup, wu));
     float3 vu = getCrossProduct(wu, uu);
 
     //origin is lookfrom
- 
+
 
     //calculate viewport
     float3 horizontal = make3(focus_dist) * make3(viewport_width) * uu;
     float3 vertical = make3(focus_dist) * make3(viewport_height) * vu;
-    float3 lower_left_corner = lookfrom - horizontal / make3(2) - vertical / make3(2) - make3(focus_dist) * wu ;
+    float3 lower_left_corner = lookfrom - horizontal / make3(2) - vertical / make3(2) - make3(focus_dist) * wu;
 
-      //get lens raduis form apeture
+    //get lens raduis form apeture
     float lens_radius = settings[6] / 2;
 
 
@@ -1066,7 +1061,7 @@ __global__ void Kernel(int* outputr, int* outputg, int* outputb, float* settings
         //set up cuda random
         curandState state;
 
-      
+
 
         curand_init((unsigned long long)clock() + (x + y * blockDim.x * gridDim.x), 0, 0, &state);
 
@@ -1076,23 +1071,23 @@ __global__ void Kernel(int* outputr, int* outputg, int* outputb, float* settings
         //get ray direction
         float3 rd = make3(lens_radius) * random_in_unit_disk(&state);
         float3 offset = uu * make3(rd.x) + vu * make3(rd.y);
-        float3 dir = lower_left_corner + make3(nu) * horizontal + make3(nv) * vertical - lookfrom -offset;
+        float3 dir = lower_left_corner + make3(nu) * horizontal + make3(nv) * vertical - lookfrom - offset;
 
         //calculate ray
-        ColorOutput = ColorOutput + raycolor(lookfrom +offset, dir, settings[9],  bvhtree, b,tex, settings[12],&state);
+        ColorOutput = ColorOutput + raycolor(lookfrom + offset, dir, settings[9], bvhtree, b, tex, settings[12], &state);
 
     }
 
     //divide by samples per pixel
     float scale = 1.0 / settings[10];
     //output
-        outputr[w] = ColorOutput.x * 255*scale;
-        outputg[w] = ColorOutput.y * 255 * scale;
-        outputb[w] = ColorOutput.z * 255 * scale;
+    outputr[w] = ColorOutput.x * 255 * scale;
+    outputg[w] = ColorOutput.y * 255 * scale;
+    outputb[w] = ColorOutput.z * 255 * scale;
 
 
-    
-    
+
+
 
 
 
@@ -1101,9 +1096,9 @@ __global__ void Kernel(int* outputr, int* outputg, int* outputb, float* settings
 
 //random funcitons for cpu
 
- double random_double() {
+double random_double() {
     // Returns a random real in [0,1).
-     srand(GetTickCount());
+    srand(GetTickCount());
     return rand() / (RAND_MAX + 1.0);
 }
 
@@ -1115,106 +1110,106 @@ __global__ void Kernel(int* outputr, int* outputg, int* outputb, float* settings
 
 
 
- //get number of objects/tris
- int getnum(std::string File) {
-
-
-    
-     using namespace std;
-     string myText;
-     ifstream MyReadFile;
-     // Read from the text file
+//get number of objects/tris
+int getnum(std::string File) {
 
 
 
-
-     MyReadFile.open(File);
-
-
-
-
-
-
-
-
-     int line = 0;
-     // Use a while loop together with the getline() function to read the file line by line
-
-     if (MyReadFile.is_open()) {
-
-         while (getline(MyReadFile, myText)) {
-        
-            
-           
-             if (myText[0] == "/"[0])
-                 continue;
-             if (myText[0] == "*"[0]) {
-               
-                 continue;
-
-
-             }
-           //increment number
-             line++;
-         }
-       
-      
-         // Close the file
-         MyReadFile.close();
-         return line + 1;
-     }
-     else {
-
-         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
-             "File Error",
-             "OOF",
-             NULL);
-         return 0;
-     }
-
- }
-
- //get texture id from name
- int gettexnum(std::string query, std::string* texpaths) {
-     for (int i = 0; i < texnum; i++)
-     {
-
-         std::string tobeq = texpaths[i];
-         std::transform(tobeq.begin(), tobeq.end(), tobeq.begin(), ::tolower);
-         if (tobeq.find(query) != std::string::npos) {
-             return i;
-         }
-     }
-     return -1;
- }
-
- //read rts fiole
-void read(std::string File, singleobject* b, std::string* texpaths) {
-
-
-    
     using namespace std;
     string myText;
     ifstream MyReadFile;
     // Read from the text file
-  
-  
-  
-   
-   MyReadFile.open(File);
- 
-    
-    
-  
-     
-    
-    
-   
+
+
+
+
+    MyReadFile.open(File);
+
+
+
+
+
+
+
+
     int line = 0;
     // Use a while loop together with the getline() function to read the file line by line
 
     if (MyReadFile.is_open()) {
-       
+
+        while (getline(MyReadFile, myText)) {
+
+
+
+            if (myText[0] == "/"[0])
+                continue;
+            if (myText[0] == "*"[0]) {
+
+                continue;
+
+
+            }
+            //increment number
+            line++;
+        }
+
+
+        // Close the file
+        MyReadFile.close();
+        return line + 1;
+    }
+    else {
+
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
+            "File Error",
+            "OOF",
+            NULL);
+        return 0;
+    }
+
+}
+
+//get texture id from name
+int gettexnum(std::string query, std::string* texpaths) {
+    for (int i = 0; i < texnum; i++)
+    {
+
+        std::string tobeq = texpaths[i];
+        std::transform(tobeq.begin(), tobeq.end(), tobeq.begin(), ::tolower);
+        if (tobeq.find(query) != std::string::npos) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+//read rts fiole
+void read(std::string File, singleobject* b, std::string* texpaths) {
+
+
+
+    using namespace std;
+    string myText;
+    ifstream MyReadFile;
+    // Read from the text file
+
+
+
+
+    MyReadFile.open(File);
+
+
+
+
+
+
+
+
+    int line = 0;
+    // Use a while loop together with the getline() function to read the file line by line
+
+    if (MyReadFile.is_open()) {
+
         while (getline(MyReadFile, myText)) {
             //what colum
             int colum = 0;
@@ -1225,21 +1220,21 @@ void read(std::string File, singleobject* b, std::string* texpaths) {
 
                 continue;
             }
-           //read settings
+            //read settings
             if (myText[0] == "*"[0]) {
                 while (s_stream.good()) {
                     string substr;
-                    getline(s_stream, substr, ','); 
+                    getline(s_stream, substr, ',');
 
-                   
-                   //set info
-                     if (colum == 1) {
 
-                       campos.x = stof(substr);
+                    //set info
+                    if (colum == 1) {
+
+                        campos.x = stof(substr);
                     }
                     else if (colum == 2) {
 
-                        campos.y= stof(substr);
+                        campos.y = stof(substr);
                     }
                     else if (colum == 3) {
 
@@ -1247,11 +1242,11 @@ void read(std::string File, singleobject* b, std::string* texpaths) {
                     }
                     else if (colum == 4) {
 
-                       aperturee = stof(substr);
+                        aperturee = stof(substr);
                     }
                     else if (colum == 5) {
 
-                       look.x = stof(substr);
+                        look.x = stof(substr);
                     }
                     else if (colum == 6) {
 
@@ -1263,7 +1258,7 @@ void read(std::string File, singleobject* b, std::string* texpaths) {
                     }
                     else if (colum == 8) {
 
-                       focus_diste   = stof(substr);
+                        focus_diste = stof(substr);
                     }
                     else if (colum == 9) {
 
@@ -1283,12 +1278,12 @@ void read(std::string File, singleobject* b, std::string* texpaths) {
                     }
                     else if (colum == 13) {
 
-                         if (substr != "no") {
-                           backtex = gettexnum(substr, texpaths);
+                        if (substr != "no") {
+                            backtex = gettexnum(substr, texpaths);
 
-                         }
-                     }
-                  
+                        }
+                    }
+
 
 
                     colum++;
@@ -1300,18 +1295,18 @@ void read(std::string File, singleobject* b, std::string* texpaths) {
             while (s_stream.good()) {
                 string substr;
                 getline(s_stream, substr, ','); //get first string delimited by comma
-           
+
                   //random value 
                 if (substr == "r") {
-                 
-                    double r =random_double();
+
+                    double r = random_double();
                     substr = to_string(r);
-                  
+
 
                 }
-                 //appl info
+                //appl info
                 if (colum == 0) {
-                   b[line].pos.x = stof(substr);
+                    b[line].pos.x = stof(substr);
 
 
                 }
@@ -1362,7 +1357,8 @@ void read(std::string File, singleobject* b, std::string* texpaths) {
                 else if (colum == 12) {
 
                     b[line].mat = stoi(substr);
-                } else if (colum == 13) {
+                }
+                else if (colum == 13) {
                     b[line].rot.x = stof(substr);
 
 
@@ -1375,7 +1371,7 @@ void read(std::string File, singleobject* b, std::string* texpaths) {
 
                     b[line].rot.z = stof(substr);
                 }
-                  else if (colum == 16) {
+                else if (colum == 16) {
                     b[line].norm.x = stof(substr);
 
 
@@ -1418,86 +1414,86 @@ void read(std::string File, singleobject* b, std::string* texpaths) {
                 }
 
                 else if (colum == 25) {
-                b[line].n3.x = stof(substr);
+                    b[line].n3.x = stof(substr);
 
 
                 }
                 else if (colum == 26) {
 
-                b[line].n3.y = stof(substr);
+                    b[line].n3.y = stof(substr);
                 }
                 else if (colum == 27) {
 
-                b[line].n3.z = stof(substr);
+                    b[line].n3.z = stof(substr);
                 }
 
 
 
 
                 else if (colum == 28) {
-                b[line].t1.x = stof(substr);
+                    b[line].t1.x = stof(substr);
 
 
                 }
                 else if (colum == 29) {
 
-                b[line].t1.y = stof(substr);
+                    b[line].t1.y = stof(substr);
                 }
-               
+
                 else if (colum == 30) {
-                b[line].t2.x = stof(substr);
+                    b[line].t2.x = stof(substr);
 
 
                 }
                 else if (colum == 31) {
 
-                b[line].t2.y = stof(substr);
+                    b[line].t2.y = stof(substr);
                 }
-              
+
                 else if (colum == 32) {
-                b[line].t3.x = stof(substr);
+                    b[line].t3.x = stof(substr);
 
 
                 }
                 else if (colum == 33) {
 
-                b[line].t3.y = stof(substr);
+                    b[line].t3.y = stof(substr);
                 }
                 else if (colum == 34) {
-                int is = stoi(substr);
-                if (is == 1) {
-                    b[line].smooth = true;
+                    int is = stoi(substr);
+                    if (is == 1) {
+                        b[line].smooth = true;
 
-                }
+                    }
 
-               
+
 
 
                 }
                 else if (colum == 35) {
 
-                int is = stoi(substr);
-                if (is == 1) {
-                    b[line].tex = true;
+                    int is = stoi(substr);
+                    if (is == 1) {
+                        b[line].tex = true;
 
-                }
+                    }
                 }
                 else if (colum == 36) {
 
-                if (substr != "no") {
-                    b[line].texnum = gettexnum(substr, texpaths);
+                    if (substr != "no") {
+                        b[line].texnum = gettexnum(substr, texpaths);
 
-                  }
+                    }
                 }
 
                 else if (colum == 37) {
 
-                if (substr != "no") {
-                    b[line].rtexnum = gettexnum(substr, texpaths);
+                    if (substr != "no") {
+                        b[line].rtexnum = gettexnum(substr, texpaths);
 
+                    }
                 }
-                }
-           
+
 
 
 
@@ -1511,7 +1507,7 @@ void read(std::string File, singleobject* b, std::string* texpaths) {
         }
 
         //set object number
-        nanum[0] = line+1;
+        nanum[0] = line + 1;
         // Close the file
         MyReadFile.close();
     }
@@ -1571,16 +1567,16 @@ float3 calculateSD(float3 data[], int len)
         standardDeviation += pow(data[i].x - mean, 2);
 
     }
-       
+
 
     out.x = sqrt(standardDeviation / len);
 
 
 
 
-     sum = 0.0, standardDeviation = 0.0;
+    sum = 0.0, standardDeviation = 0.0;
 
-   
+
 
     for (i = 0; i < len; ++i)
     {
@@ -1593,13 +1589,13 @@ float3 calculateSD(float3 data[], int len)
 
         standardDeviation += pow(data[i].y - mean, 2);
     }
-        
+
 
     out.y = sqrt(standardDeviation / len);
 
-     sum = 0.0, standardDeviation = 0.0;
+    sum = 0.0, standardDeviation = 0.0;
 
-   
+
 
     for (i = 0; i < len; ++i)
     {
@@ -1612,7 +1608,7 @@ float3 calculateSD(float3 data[], int len)
         standardDeviation += pow(data[i].z - mean, 2);
 
     }
-       
+
 
     out.z = sqrt(standardDeviation / len);
     return out;
@@ -1643,10 +1639,10 @@ void sorto(float* output, float3 input[], int size, int* yett) {
 
 
 
-  
 
 
-  //copy data
+
+    //copy data
 
     for (int o = 0; o < size; ++o) {
 
@@ -1661,21 +1657,21 @@ void sorto(float* output, float3 input[], int size, int* yett) {
             output[o] = input[o].z;
 
         }
-       
+
 
     }
-   //sort data
+    //sort data
     pairsort(output, yett, size);
 
 }
 //split objects in array into two groups for bvh
 
 
-void split(int input[],int* a, int* b, int num, singleobject* bb) {
+void split(int input[], int* a, int* b, int num, singleobject* bb) {
 
 
     //copy data
-    float3 *many = new float3[num];
+    float3* many = new float3[num];
     int* aoutput = new int[num];
     for (int o = 0; o < num; ++o) {
 
@@ -1683,17 +1679,17 @@ void split(int input[],int* a, int* b, int num, singleobject* bb) {
         aoutput[o] = input[o];
     }
 
-   
+
 
     //sorts data
     float* output = new float[num];
     sorto(output, many, num, aoutput);
-    
-   
+
+
 
     //put data into seperate arrays
     int part1 = num / 2;
- 
+
     for (int o = 0; o < part1; ++o) {
 
         a[o] = aoutput[o];
@@ -1701,7 +1697,7 @@ void split(int input[],int* a, int* b, int num, singleobject* bb) {
     }
     for (int o = part1; o < num; ++o) {
 
-        b[o-part1] = aoutput[o];
+        b[o - part1] = aoutput[o];
 
     }
 
@@ -1727,30 +1723,147 @@ void build_links(int self, int next_right_node, bvh* nbvhtree) {
         build_links(child2, next_right_node, nbvhtree);
 
     }
-      
+
 
     else {
 
         nbvhtree[self].hit_node = next_right_node;
         nbvhtree[self].miss_node = nbvhtree[self].hit_node;
     }
-    
+
 }
-    
+void bvhr(int node, bvh* nbvhtree, singleobject* bb, int* under) {
+
+    // std::cout << iteration << "sorted \n";
+     //copy amount
+
+    //for each node
+
+        //if it should be proccesed
+    if (nbvhtree[node].active == true && nbvhtree[node].end == false) {
+        //calulate size
+        int size = nbvhtree[node].count;
+        int partition1 = size / 2;
+        int partition2 = size - partition1;
+
+        //split objects
+        int* a = new int[partition1];
+        int* b = new int[partition2];
+
+        split(under, a, b, size, bb);
+
+        //create node 1    
+
+
+
+
+        int an = actualbvhnum;
+
+        nbvhtree[an].active = true;
+
+        nbvhtree[an].end = false;
+        for (int e = 0; e < partition1; ++e) {
+            under[e] = a[e];
+        }
+
+
+        nbvhtree[an].count = partition1;
+
+        if (nbvhtree[an].count == 1) {
+
+            nbvhtree[an].under = under[0];
+            nbvhtree[an].end = true;
+
+        }
+
+        //calc bounding boxes
+        float3 amin;
+        float3 amax;
+        arraybound(amin, amax, a, partition1, bb);
+        nbvhtree[an].min = amin;
+        nbvhtree[an].max = amax;
+        nbvhtree[node].children[0] = an;
+
+        actualbvhnum++;
+
+
+
+
+        //create node 2
+
+
+
+
+        int bn = actualbvhnum;
+        nbvhtree[bn].active = true;
+
+
+        for (int e = 0; e < partition2; ++e) {
+            under[e] = b[e];
+        }
+
+        nbvhtree[bn].end = false;
+        nbvhtree[bn].count = partition2;
+
+        if (nbvhtree[bn].count == 1) {
+
+            nbvhtree[bn].under = under[0];
+            nbvhtree[bn].end = true;
+
+        }
+
+        //calc boudning boxes
+        float3 bmin;
+        float3 bmax;
+        arraybound(bmin, bmax, b, partition2, bb);
+        nbvhtree[bn].min = bmin;
+        nbvhtree[bn].max = bmax;
+        nbvhtree[node].children[1] = bn;
+
+
+        actualbvhnum++;
+
+        bvhr(an, nbvhtree, bb, a);
+        bvhr(bn, nbvhtree, bb, b);
+
+
+        //clean up
+
+        delete[] a;
+        delete[] b;
+
+
+
+
+
+
+
+
+
+
+
+
+    }
+
+
+
+
+}
+
 //bvh building algorittm
 void build_bvh(bvh* nbvhtree, singleobject* bb) {
 
-   //array of additional bvh node data only for cpu
-    bvhunder* under = new bvhunder[bvhnum];
+    //array of additional bvh node data only for cpu
+    int* under = new int[objnum];
 
     //clear bvh
     bvh defualt;
     defualt.active = false;
- 
+
     std::fill_n(nbvhtree, bvhnum, defualt);
     actualbvhnum = 1;
 
-    
+
 
 
     //set up first node (top down)
@@ -1762,159 +1875,34 @@ void build_bvh(bvh* nbvhtree, singleobject* bb) {
 
 
 
-        under[0].under[o] = o;
+        under[o] = o;
 
     }
 
     //set settings
     nbvhtree[0].active = true;
-    nbvhtree[0].id = 0;
-    nbvhtree[0].count = nanum[0]-1;
+
+    nbvhtree[0].count = nanum[0] - 1;
     nbvhtree[0].end = false;
     float3 firstmin;
     float3 firstmax;
-    arraybound(firstmin, firstmax, under[0].under, nanum[0],bb);
-   
+    arraybound(firstmin, firstmax, under, nanum[0], bb);
+
     nbvhtree[0].min = firstmin;
     nbvhtree[0].max = firstmax;
-   
-  //keep track of how many are sorted
-    int sorted = nanum[0];
 
+    //keep track of how many are sorted
 
-
-
-    //for each active node with id==iteration
-   //calculate split size 
-  //split objects under node into two arrays
-   //create two bvh nodes each with the split objects under them
-                 //if bvh node has only one object under it mark as end    minus 1 from sorted 
-                //calculate bounding boxes
-                 //assign new bvh nodes as the children of the current bvh node
-                   //add to actual bvh number
-
-    for (int iteration = 0; iteration < 1000000; ++iteration) {
-
-        if (sorted <= 1) {
-
-            break;
-        }
-       // std::cout << iteration << "sorted \n";
-        //copy amount
-        int boi = actualbvhnum;
-        //for each node
-        for (int node = 0; node < boi; ++node) {
-            //if it should be proccesed
-            if (nbvhtree[node].active == true && nbvhtree[node].id == iteration && nbvhtree[node].end == false) {
-                //calulate size
-                int size = nbvhtree[node].count;
-                int partition1 = size / 2;
-                int partition2 = size - partition1;
-          
-                //split objects
-                int *a = new int[partition1];
-                int *b = new int[partition2];
-
-                split(under[node].under, a,  b, size, bb);
-                
-                //create node 1    
-            
-               
-               
-
-
-               
-                nbvhtree[actualbvhnum ].active = true;
-                nbvhtree[actualbvhnum ].id = iteration+1;
-                nbvhtree[actualbvhnum ].end = false;
-                for (int e = 0; e < partition1; ++e) {
-                   under[actualbvhnum ].under[e] = a[e];
-                }
-
-
-                nbvhtree[actualbvhnum ].count = partition1;
-
-                if (nbvhtree[actualbvhnum ].count == 1) {
-                    sorted--;
-                    nbvhtree[actualbvhnum ].under = under[actualbvhnum ].under[0];
-                    nbvhtree[actualbvhnum ].end = true;
-            
-                }
-
-                //calc bounding boxes
-                float3 amin;
-                float3 amax;
-                arraybound(amin, amax, a, partition1, bb);
-                nbvhtree[actualbvhnum ].min = amin;
-                nbvhtree[actualbvhnum ].max = amax;
-                nbvhtree[node].children[0] = actualbvhnum;
-                actualbvhnum++;
-
-
-            
-
-                //create node 2
-                
-
-
-
-
-                nbvhtree[actualbvhnum].active = true;
-                nbvhtree[actualbvhnum].id = iteration + 1;
-
-                for (int e = 0; e < partition2; ++e) {
-                    under[actualbvhnum ].under[e] = b[e];
-                }
-
-                nbvhtree[actualbvhnum].end = false;
-                nbvhtree[actualbvhnum].count = partition2;
-
-                if (nbvhtree[actualbvhnum].count == 1) {
-                    sorted--;
-                    nbvhtree[actualbvhnum].under = under[actualbvhnum ].under[0];
-                    nbvhtree[actualbvhnum].end = true;
-                 
-                }
-             
-                //calc boudning boxes
-                float3 bmin;
-                float3 bmax;
-                arraybound(bmin, bmax, b, partition2, bb);
-                nbvhtree[actualbvhnum].min = bmin;
-                nbvhtree[actualbvhnum].max = bmax;
-                nbvhtree[node].children[1] = actualbvhnum;
-               
-                actualbvhnum++;
-
-               
-                //clean up
-
-                delete[] a;
-                delete[] b;
-               
-               
-               
-            }
-
-
-
-
-        }
-     
-        
-
-    }
-    delete[] under;
-  
+    bvhr(0, nbvhtree, bb, under);
     build_links(0, -1, nbvhtree);
-
+    delete[] under;
 }
 
 
 
 
 
-void readtextures(cudaTextureObject_t* texarray,std::string* texpaths) {
+void readtextures(cudaTextureObject_t* texarray, std::string* texpaths) {
 
 
     //load textures and alloacate them
@@ -1928,8 +1916,8 @@ void readtextures(cudaTextureObject_t* texarray,std::string* texpaths) {
         sdkLoadPPM4(imagePath, &hData, &width, &height);
 
 
-        
-     
+
+
 
         unsigned int sizee = width * height * sizeof(uchar4);
 
@@ -1974,29 +1962,29 @@ void readtextures(cudaTextureObject_t* texarray,std::string* texpaths) {
         texarray[i] = tex;
         delete[] imagePath;
     }
-   
+
 }
 
 
 int getppmnum() {
     //get number of ppm textures
     std::string path = fs::current_path().string();
-     int i = 0;
+    int i = 0;
     for (const auto& entry : fs::directory_iterator(path)) {
-      
+
         std::string newpath{ entry.path().u8string() };
         if (newpath.find("ppm") != std::string::npos || newpath.find("PPM") != std::string::npos) {
-           
+
             std::cout << "Found: " << entry.path() << std::endl;
 
             i++;
         }
-        
+
 
     }
     std::cout << i << " textures total" << std::endl;
     return i;
-      
+
 }
 
 void getppmpaths(std::string* things) {
@@ -2009,13 +1997,13 @@ void getppmpaths(std::string* things) {
         if (newpath.find("ppm") != std::string::npos || newpath.find("PPM") != std::string::npos) {
 
             things[i] = newpath;
-                i++;
+            i++;
         }
 
 
     }
- 
-  
+
+
 
 }
 
@@ -2035,7 +2023,7 @@ int main(int argc, char* args[])
         filename = args[1];
         std::cout << "Opening:" << filename << std::endl;
     }
-   
+
 
     //get number of objects
     objnum = getnum(filename);
@@ -2053,26 +2041,26 @@ int main(int argc, char* args[])
     //get texture paths
     getppmpaths(texpaths);
     //read rts file
-    read(filename, allobjects,texpaths);
+    read(filename, allobjects, texpaths);
     //calulate max number of bvh nodes
-    bvhnum = nanum[0]*2;
+    bvhnum = nanum[0] * 2;
     //create bvh array
     bvh* nbvhtree = new bvh[bvhnum];
 
-   
+
     //create texure  array
-   cudaTextureObject_t* textures = new cudaTextureObject_t[texnum];
-  
-   //read textures
-   readtextures(textures, texpaths);
+    cudaTextureObject_t* textures = new cudaTextureObject_t[texnum];
+
+    //read textures
+    readtextures(textures, texpaths);
 
 
 
 
-   //build bounding volume heirarchy
-   //vars with n in front are cpu version that will be loaded onto gpu
+    //build bounding volume heirarchy
+    //vars with n in front are cpu version that will be loaded onto gpu
 
-   std::cout << "Building BVH.." << std::endl;
+    std::cout << "Building BVH.." << std::endl;
     build_bvh(nbvhtree, allobjects);
     std::cout << "Done!" << std::endl;
 
@@ -2080,21 +2068,21 @@ int main(int argc, char* args[])
 
     //update global variables
     //this can be moved to the CudaStarter function to have these change over time eg: nbackgroundintensity[0] -= 0.1
-    
+
     nbvhnumnum[0] = bvhnum;
     cudaMemcpyToSymbol(anum, &nanum[0], size_t(1) * sizeof(int), size_t(0), cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(dbvhnumnum, &nbvhnumnum[0], size_t(1) * sizeof(int), size_t(0), cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(edebugnum, &debugnum[0], size_t(1) * sizeof(int), size_t(0), cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(backgroundintensity, &nbackgroundintensity[0], size_t(1) * sizeof(float), size_t(0), cudaMemcpyHostToDevice);
-    
+
     SDL_Event event;
-   
+
     //The window we'll be rendering to
     bool quit = false;
     SDL_Window* window = NULL;
     SDL_Renderer* renderer;
     //The surface contained by the window
-   
+
     std::cout << "Opening Window:" << std::endl;
     std::cout << std::endl;
     std::cout << std::endl;
@@ -2118,7 +2106,7 @@ int main(int argc, char* args[])
         }
         else
         {
-          
+
 
 
 
@@ -2131,7 +2119,7 @@ int main(int argc, char* args[])
                 //td is how much the resolution is being divied by for preview
                 td = 1;
 
-              
+
                 //pnum is which preview stage we are on. I decided on 3 in total
                 int pnum = 0;
 
@@ -2141,7 +2129,7 @@ int main(int argc, char* args[])
                 //if first sample render and 1/8 res
                 if (iter == 0) {
 
-                    cudaError_t cudaStatus = CudaStarter(outr, outg, outb, nbvhtree, allobjects,textures,8);
+                    cudaError_t cudaStatus = CudaStarter(outr, outg, outb, nbvhtree, allobjects, textures, 8);
 
 
                     td = 8;
@@ -2154,7 +2142,7 @@ int main(int argc, char* args[])
                     cudaError_t cudaStatus = CudaStarter(outr, outg, outb, nbvhtree, allobjects, textures, 4);
                     td = 4;
                     pnum = 1;
-                   
+
                     iter++;
                 }
 
@@ -2166,7 +2154,7 @@ int main(int argc, char* args[])
                     td = 2;
                     pnum = 2;
                     iter++;
-                   
+
                 }
                 //now we can start the full res render
                 else if (iter == 3) {
@@ -2177,14 +2165,14 @@ int main(int argc, char* args[])
 
                 }
                 //keep rendering full res
-                else{
-                    cudaError_t cudaStatus = CudaStarter(noutr, noutg, noutb, nbvhtree, allobjects,textures, 1);
+                else {
+                    cudaError_t cudaStatus = CudaStarter(noutr, noutg, noutb, nbvhtree, allobjects, textures, 1);
                     //add samples to prev render
                     for (int i = 0; i < s; ++i) {
                         outr[i] += (noutr[i]);
                         outg[i] += (noutg[i]);
                         outb[i] += (noutb[i]);
-                  
+
                     }
                     //number of preview samples
                     pnum = 3;
@@ -2192,18 +2180,18 @@ int main(int argc, char* args[])
                     iter++;
 
                 }
-               
-               
-
-
-              
-
-              
-              
 
 
 
-              
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2223,23 +2211,23 @@ int main(int argc, char* args[])
 
                 //display pixels from output
                 //divide by td to just proccess rendered pixels
-                for (int x = 0; x < SCREEN_WIDTH/td; x++) {
-                    for (int y = 0; y < SCREEN_HEIGHT/td; y++) {
+                for (int x = 0; x < SCREEN_WIDTH / td; x++) {
+                    for (int y = 0; y < SCREEN_HEIGHT / td; y++) {
 
                         //calulate w from xa and y
                         int w = x * SCREEN_HEIGHT + y;
                         //set pixel color, clamp, and proccess samples
-                        SDL_SetRenderDrawColor(renderer, clamp(outr[w]/(iter-pnum),0,255), clamp(outg[w]/(iter-pnum),0,255), clamp(outb[w]/(iter - pnum),0,255), 255);
+                        SDL_SetRenderDrawColor(renderer, clamp(outr[w] / (iter - pnum), 0, 255), clamp(outg[w] / (iter - pnum), 0, 255), clamp(outb[w] / (iter - pnum), 0, 255), 255);
                         //uncomment next line for party mode(really trippy)!!!!
                         // SDL_SetRenderDrawColor(renderer, sqrt(outr[w] * iter), sqrt(outg[w] * iter), sqrt(outb[w] * iter), 255);
 
                         //here things are upscaled to bigger windows for smaller resolutions
-                        SDL_RenderDrawPoint(renderer, x * upscale*td, y * upscale*td);
-                        if (upscale > 1 || td>1) {
+                        SDL_RenderDrawPoint(renderer, x * upscale * td, y * upscale * td);
+                        if (upscale > 1 || td > 1) {
 
 
                             for (int u = 0; u < (upscale * td); u++) {
-                                SDL_RenderDrawPoint(renderer, x * (upscale * td) + u, y * (upscale*td));
+                                SDL_RenderDrawPoint(renderer, x * (upscale * td) + u, y * (upscale * td));
                                 for (int b = 0; b < (upscale * td); b++) {
                                     SDL_RenderDrawPoint(renderer, x * (upscale * td) + u, y * (upscale * td) + b);
 
@@ -2247,16 +2235,16 @@ int main(int argc, char* args[])
                             }
 
                         }
-                     
-                  
-                      
-
-
-                     
 
 
 
-                  
+
+
+
+
+
+
+
 
 
 
@@ -2271,19 +2259,19 @@ int main(int argc, char* args[])
                 //display info
                 std::cout << '\r' << "d: " << debugnum[0] << " " << "Time = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]  " << 1e+6 / std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << " FPS       " << (iter - pnum) * samples_per_pixell << " samples";
 
-             
-         
+
+
                 bool toexport = false;
                 //get input
                 SDL_PollEvent(&event);
                 //update window
-				SDL_RenderPresent(renderer);
+                SDL_RenderPresent(renderer);
 
-               
-              
+
+
 
                 //proccess input
-               
+
                 switch (event.type)
                 {
                 case SDL_QUIT:
@@ -2361,11 +2349,10 @@ int main(int argc, char* args[])
 
                     SDL_SaveBMP(sshot, patherchar);
                     SDL_FreeSurface(sshot);
-                    std::cout << "\n" <<"exported image:" << filename << ".bmp" << "\n";
+                    std::cout << "\n" << "exported image:" << filename << ".bmp" << "\n";
                 }
 
 
-               
 
 
 
@@ -2378,16 +2365,17 @@ int main(int argc, char* args[])
 
 
 
-			}
+
+            }
 
 
 
-		}
-	}
- 
+        }
+    }
 
 
-   
+
+
     //delete dynamic arrays
     delete[] nbvhtree;
     delete[] allobjects;
@@ -2408,7 +2396,7 @@ int main(int argc, char* args[])
 
 
 //this function starts the render kernel
-cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree, singleobject* allobjects,cudaTextureObject_t* texarray, int divisor)
+cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree, singleobject* allobjects, cudaTextureObject_t* texarray, int divisor)
 {
 
 
@@ -2421,17 +2409,17 @@ cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree,
 
 
 
-  
 
-   
 
-  
+
+
+
     //set up settings values
     float settings[13] = { campos.x , campos.y,campos.z, look.x,  look.y,  look.z, aperturee ,focus_diste,fovv, max_depthh, samples_per_pixell,divisor, backtex };
 
     //calculate output size
     int size = SCREEN_WIDTH * SCREEN_HEIGHT;
- 
+
 
     //placeholder pointers
     float* dev_settings = 0;
@@ -2446,7 +2434,7 @@ cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree,
     //set up error status
     cudaError_t cudaStatus;
     cudaTextureObject_t* dev_texarray = 0;
- 
+
 
 
 
@@ -2484,11 +2472,11 @@ cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree,
     //8 seems to work best. Becouse threads need to be evenly divided into block some resolutions may have blank areas near the edges
     dim3 threadsPerBlock(8, 8);
 
-    dim3 numBlocks(SCREEN_WIDTH/divisor / threadsPerBlock.x, SCREEN_HEIGHT/ divisor / threadsPerBlock.y);
+    dim3 numBlocks(SCREEN_WIDTH / divisor / threadsPerBlock.x, SCREEN_HEIGHT / divisor / threadsPerBlock.y);
 
 
     //Start Kernel!
-    Kernel << <numBlocks, threadsPerBlock >> > (dev_outputr, dev_outputg, dev_outputb, dev_settings, dev_bvhtree, dev_allobjects,dev_texarray);
+    Kernel << <numBlocks, threadsPerBlock >> > (dev_outputr, dev_outputg, dev_outputb, dev_settings, dev_bvhtree, dev_allobjects, dev_texarray);
 
     // Check for any errors launching the kernel
     cudaStatus = cudaGetLastError();
@@ -2496,13 +2484,13 @@ cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree,
 
     // cudaDeviceSynchronize waits for the kernel to finish, and returns
     // any errors encountered during the launch.
-   
+
 
     // Copy output vector from GPU buffer to host memory.
     cudaStatus = cudaMemcpy(outputr, dev_outputr, size * sizeof(int), cudaMemcpyDeviceToHost);
     cudaStatus = cudaMemcpy(outputg, dev_outputg, size * sizeof(int), cudaMemcpyDeviceToHost);
     cudaStatus = cudaMemcpy(outputb, dev_outputb, size * sizeof(int), cudaMemcpyDeviceToHost);
-   
+
 
     //free memory to avoid filling up vram
     cudaFree(dev_settings);
