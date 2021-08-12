@@ -12,9 +12,12 @@ tracker here: https://github.com/users/PhilipPragerUrbina/projects/1
 ###
 Gallery:
 <p align="center">
+      <img src="images/sanfordnew.bmp" width="600" title="bunny Test">
+      <img src="images/city.blend.rts.bmp" width="400" title="gun Test">
+       <img src="images/gun.blend.rts.bmp" width="400" title="gun Test">
     <img src="images/bolterm.JPG" width="400" title="gun Test">
    <img src="images/doge.JPG" width="400" title="Dog Test">
-     <img src="images/sanfordnew.bmp" width="400" title="bunny Test">
+   
   <img src="images/cow.PNG" width="400" title="Cow Test">
      <img src="images/eurovan2.JPG" width="350" title="car Test">
    <img src="images/car.png" width="350" title="car Test">
