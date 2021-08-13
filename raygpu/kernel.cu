@@ -2089,6 +2089,9 @@ int main(int argc, char* args[])
     std::cout << std::endl;
     std::cout << std::endl;
     std::cout << std::endl;
+
+    int spp = samples_per_pixell;
+    int md = max_depthh;
     //Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
     {
@@ -2111,7 +2114,7 @@ int main(int argc, char* args[])
 
 
 
-
+            
             int td;
             while (!quit)
             {
@@ -2132,7 +2135,8 @@ int main(int argc, char* args[])
 
                     cudaError_t cudaStatus = CudaStarter(outr, outg, outb, nbvhtree, allobjects, textures, 8);
 
-
+                    samples_per_pixell = 1;
+                    max_depthh = 2;
                     td = 8;
                     iter++;
                 }
@@ -2143,7 +2147,7 @@ int main(int argc, char* args[])
                     cudaError_t cudaStatus = CudaStarter(outr, outg, outb, nbvhtree, allobjects, textures, 4);
                     td = 4;
                     pnum = 1;
-
+                 
                     iter++;
                 }
 
@@ -2154,13 +2158,15 @@ int main(int argc, char* args[])
                     cudaError_t cudaStatus = CudaStarter(outr, outg, outb, nbvhtree, allobjects, textures, 2);
                     td = 2;
                     pnum = 2;
+                 
                     iter++;
 
                 }
                 //now we can start the full res render
                 else if (iter == 3) {
                     cudaError_t cudaStatus = CudaStarter(outr, outg, outb, nbvhtree, allobjects, textures, 1);
-
+                    samples_per_pixell = spp;
+                    max_depthh = md;
                     pnum = 3;
                     iter++;
 
@@ -2264,7 +2270,7 @@ int main(int argc, char* args[])
 
                 bool toexport = false;
                 //get input
-                SDL_PollEvent(&event);
+             
                 //update window
                 SDL_RenderPresent(renderer);
 
@@ -2272,70 +2278,154 @@ int main(int argc, char* args[])
 
 
                 //proccess input
-
-                switch (event.type)
-                {
-                case SDL_QUIT:
-                    //handle close
-                    quit = true;
-                    SDL_DestroyRenderer(renderer);
-                    break;
-
-
-                case SDL_KEYDOWN:
-
-                    switch (event.key.keysym.sym) {
-                    case SDLK_RIGHT:
-
-                        //move camera right
-                        campos.x += 1;
-
-                        //sameple iteration is reset with movement
-                       //for a motion blur effect just dont reset iter with motion 
-                        iter = 0;
-                        break;
-                    case SDLK_LEFT:
-                        campos.x -= 1;
-                        //move camera left
-
-
-                        iter = 0;
-                        break;
-                    case SDLK_UP:
-                        //move camera forward
-                        campos.z -= 1;
-                        iter = 0;
-                        break;
-                    case SDLK_DOWN:
-                        //back
-                        campos.z += 1;
-                        iter = 0;
-                        break;
-                    case SDLK_w:
-                        //up
-                        campos.y -= 0.5;
-                        iter = 0;
-                        break;
-                    case SDLK_s:
-                        //down
-                        campos.y += 0.5;
-                        iter = 0;
-                        break;
-                    case SDLK_SPACE:
-
-                        toexport = true;
-                        break;
-                    case SDLK_ESCAPE:
-                        //handle exit throug escape
+                while (SDL_PollEvent(&event)) {
+                    switch (event.type)
+                    {
+                    case SDL_QUIT:
+                        //handle close
                         quit = true;
                         SDL_DestroyRenderer(renderer);
                         break;
 
-                    default:
-                        break;
+
+                    case SDL_KEYDOWN:
+                     
+                        switch (event.key.keysym.sym) {
+                        case SDLK_RIGHT:
+
+                            //move camera right
+                            campos.x += 1;
+                            iter = 0;
+                            //sameple iteration is reset with movement
+                           //for a motion blur effect just dont reset iter with motion 
+                          
+                            break;
+                        case SDLK_LEFT:
+                            campos.x -= 1;
+                            //move camera left
+                            iter = 0;
+
+                         
+                            break;
+                        case SDLK_UP:
+                            //move camera forward
+                            campos.z -= 1;
+                            iter = 0;
+                            break;
+                        case SDLK_DOWN:
+                            //back
+                            campos.z += 1;
+                            iter = 0;
+                            break;
+                        case SDLK_w:
+                            //up
+                            campos.y -= 0.5;
+                            iter = 0;
+                            break;
+                        case SDLK_s:
+                            //down
+                            campos.y += 0.5;
+                            iter = 0;
+                            break;
+                        case SDLK_KP_6
+
+                            :
+
+                            //move camera right
+                            look.x += 0.5;
+                            iter = 0;
+                            //sameple iteration is reset with movement
+                           //for a motion blur effect just dont reset iter with motion 
+
+                            break;
+                        case SDLK_KP_4
+
+                            :
+                                look.x -= 0.5;
+                            //move camera left
+                            iter = 0;
+
+
+                            break;
+                        case SDLK_KP_8
+
+                            :
+                            //move camera forward
+                                look.z -= 0.5;
+                            iter = 0;
+                            break;
+                        case SDLK_KP_2
+
+                            :
+                            //back
+                                look.z += 0.5;
+                            iter = 0;
+                            break;
+                        case SDLK_KP_7
+
+                            :
+                            //up
+                                look.y -= 0.5;
+                            iter = 0;
+                            break;
+                        case SDLK_KP_1
+
+                            :
+                            //down
+                                look.y += 0.5;
+                            iter = 0;
+                            break;
+                        case SDLK_r:
+                            //up
+                            fovv -= 1 ;
+                            iter = 0;
+                            break;
+                        case SDLK_f:
+                            //down
+                           fovv += 1;
+                            iter = 0;
+                            break;
+                        case SDLK_t:
+                            //up
+                            aperturee -= 0.01;
+                            iter = 0;
+                            break;
+                        case SDLK_g:
+                            //down
+                            aperturee += 0.01;
+                            iter = 0;
+                            break;
+                        case SDLK_b:
+                            //down
+                            campos.x += 0.1;
+                            break;
+
+                        case SDLK_z:
+                            //up
+                            focus_diste -= 0.5;
+                            iter = 0;
+                            break;
+                        case SDLK_x:
+                            //down
+                            focus_diste += 0.5;
+                            iter = 0;
+                            break;
+
+                        case SDLK_SPACE:
+
+                            toexport = true;
+                            break;
+                        case SDLK_ESCAPE:
+                            //handle exit throug escape
+                            quit = true;
+                            SDL_DestroyRenderer(renderer);
+                            break;
+
+                        default:
+                            break;
+                        }
                     }
                 }
-
                 if (toexport == true) {
 
                     toexport = false;
