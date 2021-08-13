@@ -2011,6 +2011,22 @@ void getppmpaths(std::string* things) {
 int main(int argc, char* args[])
 {
     //check args so that files can be opened directly
+ 
+
+  
+    std::cout << R"(
+  ___   ___   ___ ___ ___    ___   __   
+ |   \ / _ \ / __| __| _ \  /_\ \ / / (c)
+ | |) | (_) | (_ | _||   / / _ \ V /  
+ |___/ \___/ \___|___|_|_\/_/ \_\_|   GPU path tracer
+                                      
+)" << "\n";
+
+
+    std::cout << "      V.1.0   by Philip Prager Urbina   2021" << std::endl;
+    std::cout << "      Find on github for documentation: https://github.com/PhilipPragerUrbina/DOGERAY" << std::endl << std::endl << std::endl << std::endl;
+
+
     std::string filename;
     if (argc < 2)
     {
@@ -2264,7 +2280,7 @@ int main(int argc, char* args[])
                 //stop timer
                 std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
                 //display info
-                std::cout << '\r' << "d: " << debugnum[0] << " " << "Time = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]  " << 1e+6 / std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << " FPS       " << (iter - pnum) * samples_per_pixell << " samples";
+                std::cout << '\r' << "d: " << debugnum[0] << " " << "Time = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]  " << 1e+6 / std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << " FPS       " << (iter - pnum) * samples_per_pixell << " samples" << "             ";
 
 
 
@@ -2377,23 +2393,31 @@ int main(int argc, char* args[])
                             break;
                         case SDLK_r:
                             //up
+                          
                             fovv -= 1 ;
                             iter = 0;
+                            std::cout << "\n" << "FOV:" << fovv << "\n";
                             break;
                         case SDLK_f:
                             //down
+                          
                            fovv += 1;
                             iter = 0;
+                            std::cout << "\n" << "FOV:" << fovv << "\n";
                             break;
                         case SDLK_t:
                             //up
+                           
                             aperturee -= 0.01;
                             iter = 0;
+                            std::cout << "\n" << "apeture:" << aperturee << "\n";
                             break;
                         case SDLK_g:
                             //down
+                           
                             aperturee += 0.01;
                             iter = 0;
+                            std::cout << "\n" << "apeture:" << aperturee << "\n";
                             break;
                         case SDLK_b:
                             //down
@@ -2402,13 +2426,17 @@ int main(int argc, char* args[])
 
                         case SDLK_z:
                             //up
+                          
                             focus_diste -= 0.5;
                             iter = 0;
+                            std::cout << "\n" << "Focus distance:" << focus_diste << "\n";
                             break;
                         case SDLK_x:
                             //down
+                         
                             focus_diste += 0.5;
                             iter = 0;
+                            std::cout << "\n" << "Focus distance:" << focus_diste << "\n";
                             break;
 
                         case SDLK_SPACE:
