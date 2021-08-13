@@ -919,19 +919,19 @@ __device__ float3 raycolor(float3 origin, float3 dir, int max_depth, bvh* bvhtre
                 float ir = b[g].addional.y;
 
                 float refraction_ratio = inorout ? (1.0 / ir) : ir;
-                float cos_theta = min(getDotProduct(getNormalizedVec(dir) * make3(-1), N), 1.0);
+                float cos_theta = min(getDotProduct(getNormalizedVec(raydir) * make3(-1), N), 1.0);
                 float sin_theta = sqrt(1.0 - cos_theta * cos_theta);
                 bool cannot_refract = (refraction_ratio * sin_theta) > 1.0;
                 float3 reflected;
                 if (cannot_refract || reflectance(cos_theta, refraction_ratio) > randy(state)) {
-                    reflected = reflect(getNormalizedVec(dir), N);
+                    reflected = reflect(getNormalizedVec(raydir), N);
 
 
                 }
 
                 else {
 
-                    reflected = refract(getNormalizedVec(dir), N, refraction_ratio);
+                    reflected = refract(getNormalizedVec(raydir), N, refraction_ratio);
                 }
 
                 cur_attenuation = cur_attenuation * ocolor;
