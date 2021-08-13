@@ -1,0 +1,110 @@
+
+
+__device__ float3 oldhit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) {
+
+    //cant dynamically allocate(too big)
+    //becouse array cant be resized the fucntion koves along the array using part of it
+
+//maximum number of traversals(Make larger to load huge models at cost of memory and performance)
+//let me know how to make resizable arrays within a cuda kernel to remove this
+
+    int tracked[10000];
+    tracked[0] = 0;
+
+    //array length
+    int num = 1;
+    //minimum place in array
+    int mini = 0;
+
+
+    //output
+    float3 out = make_float3(10000000, 0, 0);
+
+    //is not hit
+    bool oof = true;
+
+
+    //while array is not empty
+    while (mini < num) {
+
+
+
+        //get array length(so it doesnt change)
+        int numm = num;
+
+        //for each node in length
+        for (int node = mini; node < numm; node++) {
+
+
+
+
+
+
+
+
+
+
+
+
+            //remove node from array
+            mini++;
+
+
+            //get boudning box distance of node
+            float dister;
+            if (aabb2(origin, dir, bvhtree[tracked[node]].min, bvhtree[tracked[node]].max, dister)) {
+
+                //if distance is less that minumim distance so far
+                if (dister < out.x) {
+                    //if it is an end node
+                    if (bvhtree[tracked[node]].end == true) {
+                        //run hit function
+                        float3 temp = singlehit(origin, dir, bvhtree[tracked[node]].under, b);
+                        //if hit
+                        if (temp.x > -0.01 && temp.x < out.x) {
+
+                            out = temp;
+                            oof = false;
+
+
+
+
+                        }
+
+                    }
+                    else {
+                        //add child nodes
+                        tracked[num] = bvhtree[tracked[node]].children[0];
+                        num++;
+                        tracked[num] = bvhtree[tracked[node]].children[1];
+                        num++;
+                    }
+
+
+
+                }
+
+
+
+
+
+
+
+
+
+            }
+
+
+
+        }
+
+    }
+    if (oof == true) {
+        out = make_float3(-1, 0, 0);
+
+    }
+
+    return out;
+
+}
+

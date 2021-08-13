@@ -2041,6 +2041,7 @@ int main(int argc, char* args[])
     //get texture paths
     getppmpaths(texpaths);
     //read rts file
+    std::cout << "Parsing file:" << std::endl;
     read(filename, allobjects, texpaths);
     //calulate max number of bvh nodes
     bvhnum = nanum[0] * 2;
