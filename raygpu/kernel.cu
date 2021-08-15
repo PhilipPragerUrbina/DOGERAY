@@ -20,8 +20,8 @@
 
 //settings:
 //render dimensions
-const int SCREEN_WIDTH = 1280;
-const int SCREEN_HEIGHT = 720;
+int SCREEN_WIDTH = 1280;
+int SCREEN_HEIGHT = 720;
 //factor to scale window up for small resoultions
 const int upscale = 1;
 
@@ -126,20 +126,14 @@ int samples_per_pixell = 1;
 int fovv = 45;
 
 //calculate screen size
-const int s = SCREEN_WIDTH * SCREEN_HEIGHT;
+
 
 
 //image data storage
-int outr[s] = { 0 };
-int outg[s] = { 0 };
-int outb[s] = { 0 };
-int noutr[s] = { 0 };
-int noutg[s] = { 0 };
-int noutb[s] = { 0 };
 
 
 //cuda starter function 
-cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree, singleobject* allobjects, cudaTextureObject_t* texarray, int divisor);
+cudaError_t CudaStarter(int3* outputr, bvh* nbvhtree, singleobject* allobjects, cudaTextureObject_t* texarray, int divisor);
 
 
 
@@ -996,7 +990,7 @@ __device__ float3 random_in_unit_disk(curandState* state) {
 }
 
 //Main kernel for every pixel
-__global__ void Kernel(int* outputr, int* outputg, int* outputb, float* settings, bvh* bvhtree, singleobject* b, cudaTextureObject_t* tex)
+__global__ void Kernel(int3* outputr, float* settings, bvh* bvhtree, singleobject* b, cudaTextureObject_t* tex,int SCREEN_WIDTH,int SCREEN_HEIGHT)
 {
 
 
@@ -1008,9 +1002,9 @@ __global__ void Kernel(int* outputr, int* outputg, int* outputb, float* settings
 
 
     //defualt color
-    outputr[w] = 0;
-    outputg[w] = 0;
-    outputb[w] = 0;
+    outputr[w].x = 0;
+    outputr[w].y = 0;
+    outputr[w].z = 0;
 
 
     //get aspect ratio
@@ -1081,9 +1075,9 @@ __global__ void Kernel(int* outputr, int* outputg, int* outputb, float* settings
     //divide by samples per pixel
     float scale = 1.0 / settings[10];
     //output
-    outputr[w] = ColorOutput.x * 255 * scale;
-    outputg[w] = ColorOutput.y * 255 * scale;
-    outputb[w] = ColorOutput.z * 255 * scale;
+    outputr[w].x = ColorOutput.x * 255 * scale;
+    outputr[w].y = ColorOutput.y * 255 * scale;
+    outputr[w].z = ColorOutput.z * 255 * scale;
 
 
 
@@ -1282,6 +1276,15 @@ void read(std::string File, singleobject* b, std::string* texpaths) {
                             backtex = gettexnum(substr, texpaths);
 
                         }
+
+                    }
+                    else if (colum == 14) {
+
+                        SCREEN_WIDTH = stoi(substr);
+                    }
+                    else if (colum == 15) {
+
+                        SCREEN_HEIGHT = stoi(substr);
                     }
 
 
@@ -2108,6 +2111,15 @@ int main(int argc, char* args[])
 
     int spp = samples_per_pixell;
     int md = max_depthh;
+
+
+   int s = SCREEN_WIDTH * SCREEN_HEIGHT;
+    int3* outr = new int3[s];
+
+  
+    int3* noutr = new int3[s];
+  
+
     //Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
     {
@@ -2149,7 +2161,7 @@ int main(int argc, char* args[])
                 //if first sample render and 1/8 res
                 if (iter == 0) {
 
-                    cudaError_t cudaStatus = CudaStarter(outr, outg, outb, nbvhtree, allobjects, textures, 8);
+                    cudaError_t cudaStatus = CudaStarter(outr, nbvhtree, allobjects, textures, 8);
 
                     samples_per_pixell = 1;
                     max_depthh = 2;
@@ -2160,7 +2172,7 @@ int main(int argc, char* args[])
                 //if second sample render and 1/4 res. We are now on the second preview stage
                 else if (iter == 1) {
 
-                    cudaError_t cudaStatus = CudaStarter(outr, outg, outb, nbvhtree, allobjects, textures, 4);
+                    cudaError_t cudaStatus = CudaStarter(outr, nbvhtree, allobjects, textures, 4);
                     td = 4;
                     pnum = 1;
                  
@@ -2171,7 +2183,7 @@ int main(int argc, char* args[])
 
                 else if (iter == 2) {
 
-                    cudaError_t cudaStatus = CudaStarter(outr, outg, outb, nbvhtree, allobjects, textures, 2);
+                    cudaError_t cudaStatus = CudaStarter(outr, nbvhtree, allobjects, textures, 2);
                     td = 2;
                     pnum = 2;
                  
@@ -2180,7 +2192,7 @@ int main(int argc, char* args[])
                 }
                 //now we can start the full res render
                 else if (iter == 3) {
-                    cudaError_t cudaStatus = CudaStarter(outr, outg, outb, nbvhtree, allobjects, textures, 1);
+                    cudaError_t cudaStatus = CudaStarter(outr, nbvhtree, allobjects, textures, 1);
                     samples_per_pixell = spp;
                     max_depthh = md;
                     pnum = 3;
@@ -2189,12 +2201,12 @@ int main(int argc, char* args[])
                 }
                 //keep rendering full res
                 else {
-                    cudaError_t cudaStatus = CudaStarter(noutr, noutg, noutb, nbvhtree, allobjects, textures, 1);
+                    cudaError_t cudaStatus = CudaStarter(noutr, nbvhtree, allobjects, textures, 1);
                     //add samples to prev render
                     for (int i = 0; i < s; ++i) {
-                        outr[i] += (noutr[i]);
-                        outg[i] += (noutg[i]);
-                        outb[i] += (noutb[i]);
+                        outr[i].x += (noutr[i].x);
+                        outr[i].y += (noutr[i].y);
+                        outr[i].z += (noutr[i].z);
 
                     }
                     //number of preview samples
@@ -2240,9 +2252,9 @@ int main(int argc, char* args[])
                         //calulate w from xa and y
                         int w = x * SCREEN_HEIGHT + y;
                         //set pixel color, clamp, and proccess samples
-                        SDL_SetRenderDrawColor(renderer, clamp(outr[w] / (iter - pnum), 0, 255), clamp(outg[w] / (iter - pnum), 0, 255), clamp(outb[w] / (iter - pnum), 0, 255), 255);
-                        //uncomment next line for party mode(really trippy)!!!!
-                        // SDL_SetRenderDrawColor(renderer, sqrt(outr[w] * iter), sqrt(outg[w] * iter), sqrt(outb[w] * iter), 255);
+                        SDL_SetRenderDrawColor(renderer, clamp(outr[w].x / (iter - pnum), 0, 255), clamp(outr[w].y / (iter - pnum), 0, 255), clamp(outr[w].z / (iter - pnum), 0, 255), 255);
+                        //uncomment next line for party mode(really trippy)!!!
+                        //SDL_SetRenderDrawColor(renderer, sqrt(outr[w] * iter), sqrt(outg[w] * iter), sqrt(outb[w] * iter), 255);
 
                         //here things are upscaled to bigger windows for smaller resolutions
                         SDL_RenderDrawPoint(renderer, x * upscale * td, y * upscale * td);
@@ -2515,7 +2527,7 @@ int main(int argc, char* args[])
 
 
 //this function starts the render kernel
-cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree, singleobject* allobjects, cudaTextureObject_t* texarray, int divisor)
+cudaError_t CudaStarter(int3* outputr,bvh* nbvhtree, singleobject* allobjects, cudaTextureObject_t* texarray, int divisor)
 {
 
 
@@ -2542,9 +2554,8 @@ cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree,
 
     //placeholder pointers
     float* dev_settings = 0;
-    int* dev_outputr = 0;
-    int* dev_outputg = 0;
-    int* dev_outputb = 0;
+    int3* dev_outputr = 0;
+
     bvh* dev_bvhtree = 0;
     singleobject* dev_allobjects = 0;
 
@@ -2558,9 +2569,8 @@ cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree,
 
 
     // Allocate GPU buffers.
-    cudaStatus = cudaMalloc((void**)&dev_outputr, size * sizeof(int));
-    cudaStatus = cudaMalloc((void**)&dev_outputg, size * sizeof(int));
-    cudaStatus = cudaMalloc((void**)&dev_outputb, size * sizeof(int));
+    cudaStatus = cudaMalloc((void**)&dev_outputr, size * sizeof(int3));
+
 
     cudaStatus = cudaMalloc((void**)&dev_settings, 13 * sizeof(float));
 
@@ -2595,7 +2605,7 @@ cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree,
 
 
     //Start Kernel!
-    Kernel << <numBlocks, threadsPerBlock >> > (dev_outputr, dev_outputg, dev_outputb, dev_settings, dev_bvhtree, dev_allobjects, dev_texarray);
+    Kernel << <numBlocks, threadsPerBlock >> > (dev_outputr, dev_settings, dev_bvhtree, dev_allobjects, dev_texarray,SCREEN_WIDTH,SCREEN_HEIGHT);
 
     // Check for any errors launching the kernel
     cudaStatus = cudaGetLastError();
@@ -2606,9 +2616,8 @@ cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree,
 
 
     // Copy output vector from GPU buffer to host memory.
-    cudaStatus = cudaMemcpy(outputr, dev_outputr, size * sizeof(int), cudaMemcpyDeviceToHost);
-    cudaStatus = cudaMemcpy(outputg, dev_outputg, size * sizeof(int), cudaMemcpyDeviceToHost);
-    cudaStatus = cudaMemcpy(outputb, dev_outputb, size * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaStatus = cudaMemcpy(outputr, dev_outputr, size * sizeof(int3), cudaMemcpyDeviceToHost);
+
 
 
     //free memory to avoid filling up vram
@@ -2620,8 +2629,7 @@ cudaError_t CudaStarter(int* outputr, int* outputg, int* outputb, bvh* nbvhtree,
 Error:
     //just in case
     cudaFree(dev_outputr);
-    cudaFree(dev_outputg);
-    cudaFree(dev_outputb);
+
     cudaFree(dev_settings);
 
 

@@ -135,6 +135,18 @@ class ExportSomeData(Operator, ExportHelper):
         description="Field of View",
         default=45
         )
+        
+    xres: IntProperty(
+        name="Image Width",
+        description="X Resolution",
+        default=1280
+        )
+        
+    yres: IntProperty(
+        name="Image Height",
+        description="Y Resolution",
+        default=720
+        )
     positioner: FloatVectorProperty(
         name = "Look At",
         description="where camera should face",
@@ -146,6 +158,8 @@ class ExportSomeData(Operator, ExportHelper):
         # 'ACCELERATION', 'MATRIX', 'EULER', 'QUATERNION', 
         # 'AXISANGLE', 'XYZ', 'COLOR_GAMMA', 'LAYER'
         )
+        
+        
     
  
 #    use_setting: BoolProperty(
@@ -189,7 +203,7 @@ class ExportSomeData(Operator, ExportHelper):
         
         file.write('/exported from blender')
         file.write('\n')
-        file.write( '*,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%s' % (cam.location[0], -cam.location[2], cam.location[1],self.apetur,self.positioner[0],-self.positioner[2],self.positioner[1],self.fdist,self.fover, self.maxbounces,self.samples,self.backgroundi, backtex) )
+        file.write( '*,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%s,%i,%i' % (cam.location[0], -cam.location[2], cam.location[1],self.apetur,self.positioner[0],-self.positioner[2],self.positioner[1],self.fdist,self.fover, self.maxbounces,self.samples,self.backgroundi, backtex,self.xres,self.yres) )
         file.write('\n')
         for face in mesh.polygons:
             
