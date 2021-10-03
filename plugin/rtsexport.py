@@ -185,7 +185,8 @@ class ExportSomeData(Operator, ExportHelper):
     def execute(self, context):
         bpy.ops.object.transform_apply(location = True, scale = True, rotation = True)
         paths = []
-        file = open(self.filepath, 'w')                     
+        file = open(self.filepath, 'w')   
+        
         #print(self.use_setting)
         mesh = bpy.context.object.data
         cam = bpy.context.scene.camera
@@ -302,12 +303,19 @@ class ExportSomeData(Operator, ExportHelper):
             tex = 0;
             if(principled.inputs['Alpha'].default_value < 0.5):
                 tex = 1;
-            
+          
+           
+        
+      
+          
+                
             file.write( '%f,%f,%f,2,%f,%f,%f,%f,0,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%s,%s' 
-            % (v1.co.x,-v1.co.z,v1.co.y,col[0]*mult,col[1]*mult,col[2]*mult,rough,v2.co.x,-v2.co.z,v2.co.y,mat,v3.co.x,-v3.co.z,v3.co.y, 
-            face.normal[0],-face.normal[2],face.normal[1],v1.normal[0],-v1.normal[2],v1.normal[1],v2.normal[0],-v2.normal[2],v2.normal[1],v3.normal[0],-v3.normal[2],v3.normal[1],us[0], uvs[0],us[1], uvs[1],us[2], uvs[2],smooth,tex,texer,texerr) )
+                % (v1.co.x,-v1.co.z,v1.co.y,col[0]*mult,col[1]*mult,col[2]*mult,rough,v2.co.x,-v2.co.z,v2.co.y,mat,v3.co.x,-v3.co.z,v3.co.y, 
+                face.normal[0],-face.normal[2],face.normal[1],v1.normal[0],-v1.normal[2],v1.normal[1],v2.normal[0],-v2.normal[2],v2.normal[1],v3.normal[0],-v3.normal[2],v3.normal[1],us[0], uvs[0],us[1], uvs[1],us[2], uvs[2],smooth,tex,texer,texerr) )
             file.write('\n')
         file.close()
+      
+       
         print("proccesing")
         print( paths)
         print("yes")

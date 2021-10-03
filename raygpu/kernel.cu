@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <helper_functions.h> 
 #include <filesystem>
+
 #include <math.h>
 
 //##DOGERAY## by Phil
@@ -1186,7 +1187,7 @@ void read(std::string File, singleobject* b, std::string* texpaths) {
     string myText;
     ifstream MyReadFile;
     // Read from the text file
-
+    //C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.2\libnvvp
 
 
 
