@@ -19,6 +19,11 @@
 
 //##DOGERAY## by Phil
 
+
+//forgive shitty code, this is my first c++ project ever
+//I should have used vector, i know
+
+
 //settings:
 //render dimensions
 int SCREEN_WIDTH = 1280;
@@ -126,11 +131,7 @@ int max_depthh = 50;
 int samples_per_pixell = 1;
 int fovv = 45;
 
-//calculate screen size
 
-
-
-//image data storage
 
 
 //cuda starter function 
@@ -471,6 +472,8 @@ __device__ float3 hit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) 
     //is not hit
     bool oof = true;
 
+
+    //traverses BVH using speical method from paper
     int box_index = 0;
     while (box_index != -1) {
 
@@ -515,7 +518,7 @@ __device__ float3 hit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) 
 
 
 
-
+//obsolete hit function
 __device__ float3 oldhit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) {
 
     //cant dynamically allocate(too big)
@@ -991,6 +994,7 @@ __device__ float3 random_in_unit_disk(curandState* state) {
 }
 
 //Main kernel for every pixel
+//ray gen
 __global__ void Kernel(int3* outputr, float* settings, bvh* bvhtree, singleobject* b, cudaTextureObject_t* tex,int SCREEN_WIDTH,int SCREEN_HEIGHT)
 {
 
@@ -1178,7 +1182,7 @@ int gettexnum(std::string query, std::string* texpaths) {
     return -1;
 }
 
-//read rts fiole
+//read rts file
 void read(std::string File, singleobject* b, std::string* texpaths) {
 
 
@@ -1712,7 +1716,7 @@ void split(int input[], int* a, int* b, int num, singleobject* bb) {
 
 }
 
-
+//recursive link building
 void build_links(int self, int next_right_node, bvh* nbvhtree) {
 
     if (nbvhtree[self].end == false) {
@@ -1736,6 +1740,8 @@ void build_links(int self, int next_right_node, bvh* nbvhtree) {
     }
 
 }
+
+//recursive bvh bulding
 void bvhr(int node, bvh* nbvhtree, singleobject* bb, int* under) {
 
     // std::cout << iteration << "sorted \n";
@@ -1905,7 +1911,7 @@ void build_bvh(bvh* nbvhtree, singleobject* bb) {
 
 
 
-
+//allocate textures
 void readtextures(cudaTextureObject_t* texarray, std::string* texpaths) {
 
 
