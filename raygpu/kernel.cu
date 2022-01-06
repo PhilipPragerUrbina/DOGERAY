@@ -481,7 +481,7 @@ __device__ float3 hit(float3 origin, float3 dir, bvh* bvhtree, singleobject* b) 
         bool hit = aabb2(origin, dir, bvhtree[box_index].min, bvhtree[box_index].max, dister);
 
 
-        if (hit) {
+        if (hit && dister < out.x) {
             if (bvhtree[box_index].end) {
                 float3 temp = singlehit(origin, dir, bvhtree[box_index].under, b);
                 //if hit
@@ -2240,14 +2240,39 @@ int main(int argc, char* args[])
 
 
 
+                /*
+
+                //divide by td to just proccess rendered pixels
+                SDL_Texture* texture = NULL;
+                void* pixels;
+                Uint8* base;
+                int pitch;
+
+
+                float z;
+                unsigned int x;
+                unsigned int xc;
+                unsigned int y;
+                unsigned int yc;
+                texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
+                SDL_LockTexture(texture, NULL, &pixels, &pitch);
+                for (x = 0; x < SCREEN_WIDTH; x++) {
+                    for (y = 0; y < SCREEN_HEIGHT; y++) {
+
+                        int w = x * SCREEN_HEIGHT + y;
+                        base = ((Uint8*)pixels) + (4 * (y * SCREEN_WIDTH + x));
+                        base[0] = clamp(outr[w].x / (iter - pnum), 0, 255);
+                        base[1] == clamp(outr[w].y / (iter - pnum), 0, 255);
+                        base[2] = clamp(outr[w].z / (iter - pnum), 0, 255);
+                        base[3] = 255;
+                    }
 
 
 
-
-
-
-
-
+                }
+                SDL_UnlockTexture(texture);
+                SDL_RenderCopy(renderer, texture, NULL, NULL);
+                */
 
 
 
@@ -2281,6 +2306,7 @@ int main(int argc, char* args[])
 
 
 
+                        
 
 
 
@@ -2292,9 +2318,8 @@ int main(int argc, char* args[])
 
 
 
-
-                    }
-                }
+                   }
+               }
 
                 //stop timer
                 std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
