@@ -3,7 +3,7 @@ CUDA path tracer from scratch!
 You can find the project tracker on my profile.
 
 Has been tested with over a million tris!
-
+It is almost realtime. 
 Almost all the code is in kernel.cu
 
 Requires CUDA and SDL2
