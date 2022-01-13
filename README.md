@@ -15,21 +15,26 @@ tracker here: https://github.com/users/PhilipPragerUrbina/projects/1
 Gallery:
 <p align="center">
       <img src="images/sanfordnew.bmp" width="600" title="bunny Test">
-      <img src="images/city.blend.rts.bmp" width="400" title="gun Test">
-       <img src="images/gun.blend.rts.bmp" width="400" title="gun Test">
+         <img src="images/millionstris.bmp" width="350" title="million tris">
+      <img src="images/city.blend.rts.bmp" width="400" title="e Test">
+    <img src="images/gun.blend.rts.bmp" width="400" title="e Test">
+     <img src="images/Sketchfab_2020_07_11_17_10_282.blend.rts.bmp" width="400" title="e Test">
     <img src="images/bolterm.JPG" width="400" title="gun Test">
    <img src="images/doge.JPG" width="400" title="Dog Test">
-   
   <img src="images/cow.PNG" width="400" title="Cow Test">
      <img src="images/eurovan2.JPG" width="350" title="car Test">
+      <img src="images/sponza.blend.rtss.rts.bmp" width="350" title="sponza">
    <img src="images/car.png" width="350" title="car Test">
    <img src="images/torus.png" width="350" title="torus Test">
    <img src="images/teapot.png" width="350" title="teapot Test">
+         <img src="images/dicemegae.blend.rts.bmp" width="350" title="cubes Test">
     <img src="images/sponge.png" width="350" title="menger sponge Test">
      <img src="images/balls2.png" width="350" title="sphere Test">
     <img src="images/bolter.JPG" width="350" title="gun Test">
     <img src="images/gun.JPG" width="350" title="gun Test">
        <img src="images/balls.png" width="350" title="sphere Test">
+      
+    
   
 </p>
 
